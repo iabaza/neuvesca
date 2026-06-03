@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 export type ServerCartLine = {
   id: string;
   productId: string;
-  scentId: string;
+  scentId: string | null;
   quantity: number;
   productSlug: string;
   productName: string;
@@ -12,14 +12,14 @@ export type ServerCartLine = {
   productTone: string | null;
   unitPriceCents: number;
   currency: string;
-  scentName: string;
-  scentSlug: string;
+  scentName: string | null;
+  scentSlug: string | null;
 };
 
 type RawRow = {
   id: string;
   product_id: string;
-  scent_id: string;
+  scent_id: string | null;
   quantity: number;
   products: {
     slug: string;
@@ -48,7 +48,7 @@ export async function getServerCart(userId: string): Promise<ServerCartLine[]> {
   if (error) throw error;
 
   return ((data ?? []) as unknown as RawRow[])
-    .filter((r) => r.products && r.scents)
+    .filter((r) => r.products)
     .map((r) => ({
       id: r.id,
       productId: r.product_id,
@@ -61,8 +61,8 @@ export async function getServerCart(userId: string): Promise<ServerCartLine[]> {
       productTone: r.products!.tone,
       unitPriceCents: r.products!.price_cents,
       currency: r.products!.currency,
-      scentName: r.scents!.name,
-      scentSlug: r.scents!.slug,
+      scentName: r.scents?.name ?? null,
+      scentSlug: r.scents?.slug ?? null,
     }));
 }
 

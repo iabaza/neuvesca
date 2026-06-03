@@ -11,8 +11,8 @@ type Props = {
   productId: string;
   primaryScents: ScentRow[];
   priceLabel: string;
-  burnTimeHours: number;
-  sizeGrams: number;
+  burnTimeHours: number | null;
+  sizeGrams: number | null;
 };
 
 export default function ProductPurchasePanel({
@@ -24,6 +24,7 @@ export default function ProductPurchasePanel({
 }: Props) {
   const router = useRouter();
   const { addToCart } = useCart();
+  const hasScents = primaryScents.length > 0;
   const [scentId, setScentId] = useState<string | null>(
     primaryScents[0]?.id ?? null,
   );
@@ -37,14 +38,14 @@ export default function ProductPurchasePanel({
     [primaryScents, scentId],
   );
 
-  const canAdd = Boolean(scentId) && !adding && !isPending;
+  const canAdd = (!hasScents || Boolean(scentId)) && !adding && !isPending;
 
   async function onAdd() {
-    if (!scentId) return;
+    if (hasScents && !scentId) return;
     setAdding(true);
     setAdded(false);
     try {
-      await addToCart(productId, scentId, quantity);
+      await addToCart(productId, hasScents ? scentId : null, quantity);
       setAdded(true);
       startTransition(() => router.refresh());
     } finally {
@@ -52,70 +53,79 @@ export default function ProductPurchasePanel({
     }
   }
 
-  const ozLabel = (sizeGrams / 28.3495).toFixed(1);
+  const ozLabel = sizeGrams ? (sizeGrams / 28.3495).toFixed(1) : null;
+  const hasSpecs = burnTimeHours != null || sizeGrams != null;
 
   return (
     <div className="grid gap-7">
-      <dl className="productSpecs" aria-label="Product specifications">
-        <div>
-          <dt>Burning Hours</dt>
-          <dd>{burnTimeHours}+ hours</dd>
-        </div>
-        <div>
-          <dt>Weight</dt>
-          <dd>
-            {ozLabel}oz / {sizeGrams}g
-          </dd>
-        </div>
-      </dl>
-
-      <fieldset className="scentPicker">
-        <legend className="scentPickerHeader">
-          <span className="eyebrow">
-            Choose your scent
-            <span className="scentPickerCount">
-              {primaryScents.length}{" "}
-              {primaryScents.length === 1 ? "option" : "options"}
-            </span>
-          </span>
-          {selectedScent && (
-            <span className="scentSelected">{selectedScent.name}</span>
+      {hasSpecs && (
+        <dl className="productSpecs" aria-label="Product specifications">
+          {burnTimeHours != null && (
+            <div>
+              <dt>Burning Hours</dt>
+              <dd>{burnTimeHours}+ hours</dd>
+            </div>
           )}
-        </legend>
+          {sizeGrams != null && (
+            <div>
+              <dt>Weight</dt>
+              <dd>
+                {ozLabel}oz / {sizeGrams}g
+              </dd>
+            </div>
+          )}
+        </dl>
+      )}
 
-        <div className="scentRow">
-          {primaryScents.map((s) => {
-            const selected = scentId === s.id;
-            const img = s.image_url ?? scentImageUrl(s.slug);
-            return (
-              <div className="scentTile" key={s.id}>
-                <button
-                  aria-label={`Choose ${s.name}`}
-                  aria-pressed={selected}
-                  className="scentTileImage"
-                  onClick={() => setScentId(s.id)}
-                  type="button"
-                >
-                  {img ? (
-                    <Image alt="" fill sizes="96px" src={img} />
-                  ) : (
-                    <span className="scentTileSwatch">
-                      <span
-                        style={{ background: scentSwatchColor(s.slug) }}
-                      />
-                    </span>
-                  )}
-                </button>
-                <span className="scentTileName">{s.name}</span>
-              </div>
-            );
-          })}
-        </div>
+      {hasScents && (
+        <fieldset className="scentPicker">
+          <legend className="scentPickerHeader">
+            <span className="eyebrow">
+              Choose your scent
+              <span className="scentPickerCount">
+                {primaryScents.length}{" "}
+                {primaryScents.length === 1 ? "option" : "options"}
+              </span>
+            </span>
+            {selectedScent && (
+              <span className="scentSelected">{selectedScent.name}</span>
+            )}
+          </legend>
 
-        {selectedScent?.description && (
-          <p className="scentDescription">{selectedScent.description}</p>
-        )}
-      </fieldset>
+          <div className="scentRow">
+            {primaryScents.map((s) => {
+              const selected = scentId === s.id;
+              const img = s.image_url ?? scentImageUrl(s.slug);
+              return (
+                <div className="scentTile" key={s.id}>
+                  <button
+                    aria-label={`Choose ${s.name}`}
+                    aria-pressed={selected}
+                    className="scentTileImage"
+                    onClick={() => setScentId(s.id)}
+                    type="button"
+                  >
+                    {img ? (
+                      <Image alt="" fill sizes="96px" src={img} />
+                    ) : (
+                      <span className="scentTileSwatch">
+                        <span
+                          style={{ background: scentSwatchColor(s.slug) }}
+                        />
+                      </span>
+                    )}
+                  </button>
+                  <span className="scentTileName">{s.name}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {selectedScent?.description && (
+            <p className="scentDescription">{selectedScent.description}</p>
+          )}
+        </fieldset>
+      )}
 
       <div className="flex items-center gap-4">
         <span className="eyebrow !mb-0">Quantity</span>
@@ -157,7 +167,7 @@ export default function ProductPurchasePanel({
           ? "Adding to bag…"
           : added
             ? "Added to bag"
-            : selectedScent
+            : hasScents && selectedScent
               ? `Add ${selectedScent.name} to bag`
               : "Add to bag"}
       </button>

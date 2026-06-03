@@ -41,8 +41,8 @@ export default async function CheckoutPage({
           Shipping &amp; payment.
         </h1>
         <p className="lede">
-          Pay by card now or choose cash on delivery, then we&rsquo;ll get the
-          pour boxed.
+          Pay with Fawry Pay, by card, or cash on delivery — then we&rsquo;ll
+          get the pour boxed.
         </p>
 
         <CheckoutForm
@@ -67,7 +67,8 @@ export default async function CheckoutPage({
                   {line.productName}
                 </span>
                 <span className="text-[0.72rem] uppercase tracking-[0.22em] text-[var(--muted)]">
-                  {line.scentName} x{line.quantity}
+                  {line.scentName ? `${line.scentName} x` : "x"}
+                  {line.quantity}
                 </span>
               </div>
               <span className="[font-family:var(--serif)] text-[1.05rem] italic">

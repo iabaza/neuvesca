@@ -5,64 +5,40 @@ import { useFormStatus } from "react-dom";
 import { formatPrice } from "@/lib/format";
 import type { ServerCartLine } from "@/lib/queries/cart";
 import { readStoredPromo, type StoredPromo } from "@/lib/cart/promo";
-import {
-  createStripePaymentIntent,
-  placeOrder,
-  type StripeIntentResult,
-} from "./actions";
+import { createFawryCheckout, placeOrder } from "./actions";
 
-type StripeElements = {
-  create: (type: "payment") => {
-    mount: (target: HTMLElement) => void;
-  };
-};
-
-type StripeClient = {
-  elements: (options: {
-    clientSecret: string;
-    appearance?: Record<string, unknown>;
-  }) => StripeElements;
-  confirmPayment: (options: {
-    elements: StripeElements;
-    confirmParams: { return_url: string };
-    redirect: "if_required";
-  }) => Promise<{
-    error?: { message?: string };
-    paymentIntent?: { status?: string };
-  }>;
-};
-
-declare global {
-  interface Window {
-    Stripe?: (publishableKey: string) => StripeClient;
-  }
-}
-
-let stripeScriptPromise: Promise<void> | null = null;
-
-function loadStripeScript() {
-  if (typeof window === "undefined") return Promise.resolve();
-  if (window.Stripe) return Promise.resolve();
-  if (stripeScriptPromise) return stripeScriptPromise;
-
-  stripeScriptPromise = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://js.stripe.com/v3";
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Stripe.js could not load."));
-    document.head.appendChild(script);
-  });
-
-  return stripeScriptPromise;
-}
-
-function CashSubmitButton() {
+function PayNowButton({
+  method,
+  busy,
+  onCardClick,
+}: {
+  method: "card" | "cod";
+  busy: boolean;
+  onCardClick: () => void;
+}) {
   const { pending } = useFormStatus();
+  const disabled = busy || pending;
+
+  if (method === "card") {
+    return (
+      <button
+        className="button primary mt-4 w-full"
+        disabled={disabled}
+        onClick={onCardClick}
+        type="button"
+      >
+        {busy ? "Redirecting" : "Pay now"}
+      </button>
+    );
+  }
 
   return (
-    <button className="button secondary mt-2" disabled={pending} type="submit">
-      {pending ? "Placing order" : "Pay cash on delivery"}
+    <button
+      className="button primary mt-4 w-full"
+      disabled={disabled}
+      type="submit"
+    >
+      {pending ? "Placing order" : "Pay now"}
     </button>
   );
 }
@@ -81,16 +57,9 @@ export default function CheckoutForm({
   error?: string;
 }) {
   const formRef = useRef<HTMLFormElement | null>(null);
-  const stripeElementRef = useRef<HTMLDivElement | null>(null);
-  const stripeRef = useRef<StripeClient | null>(null);
-  const elementsRef = useRef<StripeElements | null>(null);
-  const [stripeResult, setStripeResult] = useState<StripeIntentResult | null>(
-    null,
-  );
-  const [stripeOrderId, setStripeOrderId] = useState("");
-  const [stripeMessage, setStripeMessage] = useState("");
-  const [isStartingStripe, setIsStartingStripe] = useState(false);
-  const [isConfirmingStripe, setIsConfirmingStripe] = useState(false);
+  const [isStartingFawry, setIsStartingFawry] = useState(false);
+  const [fawryMessage, setFawryMessage] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("card");
   const [promo, setPromo] = useState<StoredPromo | null>(null);
 
   useEffect(() => {
@@ -102,93 +71,44 @@ export default function CheckoutForm({
     : 0;
   const totalCents = Math.max(0, subtotalCents - discountCents);
 
-  async function startStripePayment() {
+  async function payWithFawry() {
     const form = formRef.current;
     if (!form) return;
     if (!form.reportValidity()) return;
 
-    setIsStartingStripe(true);
-    setStripeMessage("");
-    setStripeResult(null);
+    setIsStartingFawry(true);
+    setFawryMessage("");
 
     try {
-      const result = await createStripePaymentIntent(new FormData(form));
-      setStripeResult(result);
-
+      const result = await createFawryCheckout(new FormData(form));
       if (!result.ok) {
-        setStripeMessage(result.error);
+        setFawryMessage(result.error);
+        setIsStartingFawry(false);
         return;
       }
 
-      await loadStripeScript();
-      if (!window.Stripe) {
-        setStripeMessage("Stripe.js is unavailable.");
-        return;
+      // Submit a hidden form to Fawry's hosted checkout.
+      const submit = document.createElement("form");
+      submit.method = "POST";
+      submit.action = result.action;
+      submit.style.display = "none";
+      for (const [name, value] of Object.entries(result.fields)) {
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = name;
+        input.value = value;
+        submit.appendChild(input);
       }
-
-      const stripe = window.Stripe(result.publishableKey);
-      const elements = stripe.elements({
-        clientSecret: result.clientSecret,
-        appearance: {
-          theme: "stripe",
-          variables: {
-            colorPrimary: "#1f1a14",
-            borderRadius: "2px",
-            fontFamily: "Inter, system-ui, sans-serif",
-          },
-        },
-      });
-
-      if (stripeElementRef.current) {
-        stripeElementRef.current.innerHTML = "";
-        elements.create("payment").mount(stripeElementRef.current);
-      }
-
-      stripeRef.current = stripe;
-      elementsRef.current = elements;
-      setStripeOrderId(result.orderId);
-      setStripeMessage("Enter card details to complete payment.");
-    } catch (loadError) {
-      setStripeMessage(
-        loadError instanceof Error
-          ? loadError.message
-          : "Stripe checkout could not start.",
+      document.body.appendChild(submit);
+      submit.submit();
+    } catch (error) {
+      setFawryMessage(
+        error instanceof Error
+          ? error.message
+          : "Card checkout could not start.",
       );
-    } finally {
-      setIsStartingStripe(false);
+      setIsStartingFawry(false);
     }
-  }
-
-  async function confirmStripePayment() {
-    if (!stripeRef.current || !elementsRef.current || !stripeOrderId) return;
-
-    setIsConfirmingStripe(true);
-    setStripeMessage("");
-
-    const result = await stripeRef.current.confirmPayment({
-      elements: elementsRef.current,
-      confirmParams: {
-        return_url: `${window.location.origin}/checkout/success?order=${stripeOrderId}`,
-      },
-      redirect: "if_required",
-    });
-
-    if (result.error) {
-      setStripeMessage(result.error.message || "Payment could not be confirmed.");
-      setIsConfirmingStripe(false);
-      return;
-    }
-
-    if (
-      result.paymentIntent?.status === "succeeded" ||
-      result.paymentIntent?.status === "processing"
-    ) {
-      window.location.href = `/checkout/success?order=${stripeOrderId}`;
-      return;
-    }
-
-    setStripeMessage("Payment is awaiting confirmation.");
-    setIsConfirmingStripe(false);
   }
 
   return (
@@ -210,6 +130,15 @@ export default function CheckoutForm({
           name="customer_email"
           required
           type="email"
+        />
+      </label>
+      <label>
+        <span>Mobile</span>
+        <input
+          name="customer_mobile"
+          placeholder="+20 1xxxxxxxxx"
+          required
+          type="tel"
         />
       </label>
       <label>
@@ -242,8 +171,9 @@ export default function CheckoutForm({
       <div className="mt-2 grid gap-4 border-t border-[var(--line-soft)] pt-4">
         <div className="grid gap-2">
           <p className="eyebrow !mb-0">Payment</p>
-          <p className="text-[var(--ink-soft)]">
-            Choose card payment now or cash on delivery.
+          <p className="text-[0.85rem] text-[var(--ink-soft)]">
+            Your payment method&rsquo;s billing address must match the shipping
+            address. All transactions are secure and encrypted.
           </p>
           {promo && (
             <p className="text-[0.85rem] text-[var(--ink-soft)]">
@@ -255,40 +185,64 @@ export default function CheckoutForm({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            className="button primary mt-2"
-            disabled={isStartingStripe}
-            onClick={startStripePayment}
-            type="button"
+        <div className="grid gap-3">
+          <label
+            className={`flex cursor-pointer items-start gap-3 border bg-[var(--cream)] p-4 transition-colors ${
+              paymentMethod === "card"
+                ? "border-[var(--ink)]"
+                : "border-[var(--line)] hover:border-[var(--ink-soft)]"
+            }`}
           >
-            {isStartingStripe ? "Starting Stripe" : "Pay by card"}
-          </button>
-          <CashSubmitButton />
+            <input
+              checked={paymentMethod === "card"}
+              className="mt-1"
+              name="payment_choice"
+              onChange={() => setPaymentMethod("card")}
+              type="radio"
+              value="card"
+            />
+            <div className="grid gap-2">
+              <span className="text-[0.95rem]">
+                Pay via (Debit/Credit cards/Wallets/Installments)
+              </span>
+              {paymentMethod === "card" && (
+                <span className="text-[0.8rem] text-[var(--ink-soft)]">
+                  You&rsquo;ll be redirected to complete your purchase securely.
+                </span>
+              )}
+            </div>
+          </label>
+
+          <label
+            className={`flex cursor-pointer items-start gap-3 border bg-[var(--cream)] p-4 transition-colors ${
+              paymentMethod === "cod"
+                ? "border-[var(--ink)]"
+                : "border-[var(--line)] hover:border-[var(--ink-soft)]"
+            }`}
+          >
+            <input
+              checked={paymentMethod === "cod"}
+              className="mt-1"
+              name="payment_choice"
+              onChange={() => setPaymentMethod("cod")}
+              type="radio"
+              value="cod"
+            />
+            <span className="text-[0.95rem]">Cash on Delivery (COD)</span>
+          </label>
         </div>
 
-        <div
-          className={`grid gap-4 ${
-            stripeResult?.ok ? "border-t border-[var(--line-soft)] pt-4" : ""
-          }`}
-        >
-          <div ref={stripeElementRef} />
-          {stripeResult?.ok && (
-            <button
-              className="button primary"
-              disabled={isConfirmingStripe}
-              onClick={confirmStripePayment}
-              type="button"
-            >
-              {isConfirmingStripe ? "Confirming" : "Confirm card payment"}
-            </button>
-          )}
-          {stripeMessage && (
-            <p className="authMessage" role="status">
-              {stripeMessage}
-            </p>
-          )}
-        </div>
+        {fawryMessage && (
+          <p className="authMessage" role="status">
+            {fawryMessage}
+          </p>
+        )}
+
+        <PayNowButton
+          busy={isStartingFawry}
+          method={paymentMethod}
+          onCardClick={payWithFawry}
+        />
       </div>
 
       <input

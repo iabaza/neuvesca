@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   clearGuestCart,
   getGuestCart,
+  lineKey,
   mergeGuestLine,
   setGuestCart,
   type GuestCartLine,
@@ -28,7 +29,7 @@ type CartContextValue = {
   isLoading: boolean;
   addToCart: (
     productId: string,
-    scentId: string,
+    scentId: string | null,
     quantity?: number,
   ) => Promise<void>;
   updateQty: (lineId: string, quantity: number) => Promise<void>;
@@ -57,14 +58,18 @@ async function hydrateGuest(
 ): Promise<CartItem[]> {
   if (lines.length === 0) return [];
   const productIds = Array.from(new Set(lines.map((l) => l.productId)));
-  const scentIds = Array.from(new Set(lines.map((l) => l.scentId)));
+  const scentIds = Array.from(
+    new Set(lines.map((l) => l.scentId).filter((s): s is string => Boolean(s))),
+  );
 
   const [{ data: products }, { data: scents }] = await Promise.all([
     supabase
       .from("products")
       .select("id, slug, name, image_url, tone, price_cents, currency")
       .in("id", productIds),
-    supabase.from("scents").select("id, slug, name").in("id", scentIds),
+    scentIds.length > 0
+      ? supabase.from("scents").select("id, slug, name").in("id", scentIds)
+      : Promise.resolve({ data: [] as ScentLookup[] }),
   ]);
 
   const productMap = new Map<string, ProductLookup>(
@@ -77,10 +82,11 @@ async function hydrateGuest(
   return lines
     .map((l): CartItem | null => {
       const p = productMap.get(l.productId);
-      const s = scentMap.get(l.scentId);
-      if (!p || !s) return null;
+      const s = l.scentId ? scentMap.get(l.scentId) ?? null : null;
+      if (!p) return null;
+      if (l.scentId && !s) return null;
       return {
-        id: `${l.productId}:${l.scentId}`,
+        id: lineKey(l.productId, l.scentId),
         productId: l.productId,
         scentId: l.scentId,
         quantity: l.quantity,
@@ -90,8 +96,8 @@ async function hydrateGuest(
         productTone: p.tone,
         unitPriceCents: p.price_cents,
         currency: p.currency,
-        scentName: s.name,
-        scentSlug: s.slug,
+        scentName: s?.name ?? null,
+        scentSlug: s?.slug ?? null,
       };
     })
     .filter((x): x is CartItem => x !== null);
@@ -116,7 +122,7 @@ async function loadAuthedCart(
   type Row = {
     id: string;
     product_id: string;
-    scent_id: string;
+    scent_id: string | null;
     quantity: number;
     products: {
       slug: string;
@@ -130,7 +136,7 @@ async function loadAuthedCart(
   };
 
   return ((data ?? []) as unknown as Row[])
-    .filter((r) => r.products && r.scents)
+    .filter((r) => r.products)
     .map((r) => ({
       id: r.id,
       productId: r.product_id,
@@ -142,8 +148,8 @@ async function loadAuthedCart(
       productTone: r.products!.tone,
       unitPriceCents: r.products!.price_cents,
       currency: r.products!.currency,
-      scentName: r.scents!.name,
-      scentSlug: r.scents!.slug,
+      scentName: r.scents?.name ?? null,
+      scentSlug: r.scents?.slug ?? null,
     }));
 }
 
@@ -162,23 +168,26 @@ async function mergeGuestIntoDb(
   const existingMap = new Map<string, number>(
     ((existing ?? []) as Array<{
       product_id: string;
-      scent_id: string;
+      scent_id: string | null;
       quantity: number;
-    }>).map((row) => [`${row.product_id}:${row.scent_id}`, row.quantity]),
+    }>).map((row) => [lineKey(row.product_id, row.scent_id), row.quantity]),
   );
 
   for (const line of guestLines) {
-    const key = `${line.productId}:${line.scentId}`;
+    const key = lineKey(line.productId, line.scentId);
     const existingQty = existingMap.get(key) ?? 0;
     const nextQty = existingQty + line.quantity;
 
     if (existingQty > 0) {
-      await supabase
+      let query = supabase
         .from("cart_items")
         .update({ quantity: nextQty })
         .eq("user_id", userId)
-        .eq("product_id", line.productId)
-        .eq("scent_id", line.scentId);
+        .eq("product_id", line.productId);
+      query = line.scentId
+        ? query.eq("scent_id", line.scentId)
+        : query.is("scent_id", null);
+      await query;
     } else {
       await supabase.from("cart_items").insert({
         user_id: userId,
@@ -281,7 +290,7 @@ export function CartProvider({
   }, [refresh]);
 
   const addToCart = useCallback(
-    async (productId: string, scentId: string, quantity = 1) => {
+    async (productId: string, scentId: string | null, quantity = 1) => {
       if (userId) {
         const existing = items.find(
           (i) => i.productId === productId && i.scentId === scentId,
@@ -323,7 +332,7 @@ export function CartProvider({
       } else {
         const guest = getGuestCart();
         const next = guest.map((l) =>
-          `${l.productId}:${l.scentId}` === lineId
+          lineKey(l.productId, l.scentId) === lineId
             ? { ...l, quantity: safe }
             : l,
         );
@@ -340,7 +349,7 @@ export function CartProvider({
         await supabase.from("cart_items").delete().eq("id", lineId);
       } else {
         const guest = getGuestCart().filter(
-          (l) => `${l.productId}:${l.scentId}` !== lineId,
+          (l) => lineKey(l.productId, l.scentId) !== lineId,
         );
         setGuestCart(guest);
       }

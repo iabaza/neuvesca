@@ -11,20 +11,33 @@ export type AdminScentOption = {
   name: string;
 };
 
+export type AdminProductCategory = "candles" | "bundles" | "accessories";
+
+export const PRODUCT_CATEGORIES: Array<{
+  value: AdminProductCategory;
+  label: string;
+}> = [
+  { value: "candles", label: "Candles" },
+  { value: "bundles", label: "Bundles" },
+  { value: "accessories", label: "Accessories" },
+];
+
 export type AdminProduct = {
   id: string;
   slug: string;
   name: string;
   description: string;
   family: string;
-  burn_time_hours: number;
+  burn_time_hours: number | null;
   tone: string | null;
-  size_grams: number;
+  size_grams: number | null;
   price_cents: number;
   currency: string;
   image_url: string | null;
+  gallery_image_urls: string[] | null;
   is_active: boolean;
   stock_units: number;
+  category: AdminProductCategory;
   product_scents: Array<{
     scent_id: string;
     note_role: "primary" | "top" | "heart" | "base";
@@ -37,14 +50,16 @@ type ProductForm = {
   name: string;
   description: string;
   burn_time_hours: string;
+  size_grams: string;
   price: string; // displayed in EGP, not cents
   stock_units: string;
   image_url: string;
+  gallery_image_urls: string[];
   scent_ids: string[];
+  category: AdminProductCategory;
 };
 
 const DEFAULT_FAMILY = "Scented";
-const DEFAULT_SIZE_GRAMS = 220;
 const DEFAULT_CURRENCY = "EGP";
 
 function blankForm(): ProductForm {
@@ -52,11 +67,14 @@ function blankForm(): ProductForm {
     slug: "",
     name: "",
     description: "",
-    burn_time_hours: "45",
+    burn_time_hours: "",
+    size_grams: "",
     price: "48",
     stock_units: "100",
     image_url: "",
+    gallery_image_urls: [],
     scent_ids: [],
+    category: "candles",
   };
 }
 
@@ -70,11 +88,15 @@ function productToForm(product: AdminProduct): ProductForm {
     slug: product.slug,
     name: product.name,
     description: product.description,
-    burn_time_hours: String(product.burn_time_hours),
+    burn_time_hours:
+      product.burn_time_hours == null ? "" : String(product.burn_time_hours),
+    size_grams: product.size_grams == null ? "" : String(product.size_grams),
     price: String(Math.round(product.price_cents / 100)),
     stock_units: String(product.stock_units ?? 0),
     image_url: product.image_url ?? "",
+    gallery_image_urls: product.gallery_image_urls ?? [],
     scent_ids,
+    category: (product.category ?? "candles") as AdminProductCategory,
   };
 }
 
@@ -84,11 +106,6 @@ function slugify(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-}
-
-function parsePositiveInt(value: string, fallback: number) {
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 export default function ProductsAdminClient({
@@ -114,7 +131,7 @@ export default function ProductsAdminClient({
     const { data, error } = await supabase
       .from("products")
       .select(
-        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, is_active, stock_units,
+        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, stock_units, category,
          product_scents ( scent_id, note_role, sort_order )`,
       )
       .order("slug", { ascending: true });
@@ -184,19 +201,29 @@ export default function ProductsAdminClient({
         ? stockParsed
         : 0;
 
+      const burnParsed = Number.parseInt(form.burn_time_hours, 10);
+      const burnTimeHours =
+        Number.isFinite(burnParsed) && burnParsed > 0 ? burnParsed : null;
+
+      const sizeParsed = Number.parseInt(form.size_grams, 10);
+      const sizeGrams =
+        Number.isFinite(sizeParsed) && sizeParsed > 0 ? sizeParsed : null;
+
       const payload = {
         slug: slugify(form.slug || form.name),
         name: form.name.trim(),
         description: form.description.trim(),
         family: DEFAULT_FAMILY,
-        burn_time_hours: parsePositiveInt(form.burn_time_hours, 45),
+        burn_time_hours: burnTimeHours,
         tone: null,
-        size_grams: DEFAULT_SIZE_GRAMS,
+        size_grams: sizeGrams,
         price_cents: priceCents,
         currency: DEFAULT_CURRENCY,
         image_url: imageUrl,
+        gallery_image_urls: form.gallery_image_urls,
         is_active: true,
         stock_units: stockUnits,
+        category: form.category,
       };
 
       if (!payload.slug || !payload.name || !payload.description) {
@@ -387,6 +414,24 @@ export default function ProductsAdminClient({
             />
           </label>
 
+          <label className="adminFormRow">
+            <span className="adminFormLabel">Category</span>
+            <select
+              className="adminInput"
+              onChange={(e) =>
+                updateField("category", e.target.value as AdminProductCategory)
+              }
+              required
+              value={form.category}
+            >
+              {PRODUCT_CATEGORIES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <div className="adminFormGrid adminFormGrid3">
             <label className="adminFormRow">
               <span className="adminFormLabel">Price (EGP)</span>
@@ -401,17 +446,6 @@ export default function ProductsAdminClient({
               />
             </label>
             <label className="adminFormRow">
-              <span className="adminFormLabel">Burn time (hours)</span>
-              <input
-                className="adminInput"
-                min="1"
-                onChange={(e) => updateField("burn_time_hours", e.target.value)}
-                required
-                type="number"
-                value={form.burn_time_hours}
-              />
-            </label>
-            <label className="adminFormRow">
               <span className="adminFormLabel">Units in stock</span>
               <input
                 className="adminInput"
@@ -422,13 +456,46 @@ export default function ProductsAdminClient({
                 value={form.stock_units}
               />
             </label>
+            <label className="adminFormRow">
+              <span className="adminFormLabel">
+                Burn time (hours){" "}
+                <span style={{ color: "var(--admin-muted)", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
+                  — optional
+                </span>
+              </span>
+              <input
+                className="adminInput"
+                min="1"
+                onChange={(e) => updateField("burn_time_hours", e.target.value)}
+                placeholder="leave blank to hide"
+                type="number"
+                value={form.burn_time_hours}
+              />
+            </label>
           </div>
+
+          <label className="adminFormRow">
+            <span className="adminFormLabel">
+              Size (grams){" "}
+              <span style={{ color: "var(--admin-muted)", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
+                — optional
+              </span>
+            </span>
+            <input
+              className="adminInput"
+              min="1"
+              onChange={(e) => updateField("size_grams", e.target.value)}
+              placeholder="leave blank to hide"
+              type="number"
+              value={form.size_grams}
+            />
+          </label>
 
           <div className="adminFormRow">
             <span className="adminFormLabel">
               Scents{" "}
               <span style={{ color: "var(--admin-muted)", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
-                — pick which scents this product comes in
+                — optional, pick which scents this product comes in
               </span>
             </span>
             {scents.length === 0 ? (
@@ -490,6 +557,109 @@ export default function ProductsAdminClient({
               accept="image/jpeg,image/png,image/webp,image/avif"
               className="adminInput"
               ref={imageInputRef}
+              type="file"
+            />
+          </div>
+
+          <div className="adminFormRow">
+            <span className="adminFormLabel">
+              Gallery images{" "}
+              <span style={{ color: "var(--admin-muted)", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
+                — extra photos shown on the product page
+              </span>
+            </span>
+
+            {form.gallery_image_urls.length > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gap: "0.6rem",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
+                  marginBottom: "0.6rem",
+                }}
+              >
+                {form.gallery_image_urls.map((url, idx) => (
+                  <div
+                    key={`${url}-${idx}`}
+                    style={{
+                      border: "1px solid var(--admin-line)",
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      position: "relative",
+                      aspectRatio: "1 / 1",
+                    }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      alt=""
+                      src={url}
+                      style={{
+                        height: "100%",
+                        objectFit: "cover",
+                        width: "100%",
+                      }}
+                    />
+                    <button
+                      aria-label="Remove image"
+                      onClick={() =>
+                        setForm((curr) => ({
+                          ...curr,
+                          gallery_image_urls: curr.gallery_image_urls.filter(
+                            (_, i) => i !== idx,
+                          ),
+                        }))
+                      }
+                      style={{
+                        background: "rgba(31,26,20,0.7)",
+                        border: 0,
+                        borderRadius: 999,
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontSize: "0.75rem",
+                        height: 22,
+                        lineHeight: 1,
+                        position: "absolute",
+                        right: 6,
+                        top: 6,
+                        width: 22,
+                      }}
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <input
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              className="adminInput"
+              multiple
+              onChange={async (e) => {
+                const files = Array.from(e.target.files ?? []);
+                e.target.value = "";
+                if (files.length === 0) return;
+                setMessage("");
+                try {
+                  const uploads = await Promise.all(
+                    files.map((f) => uploadProductImage(f)),
+                  );
+                  setForm((curr) => ({
+                    ...curr,
+                    gallery_image_urls: [
+                      ...curr.gallery_image_urls,
+                      ...uploads.map((u) => u.publicUrl),
+                    ],
+                  }));
+                } catch (err) {
+                  setMessage(
+                    err instanceof Error
+                      ? err.message
+                      : "Could not upload one of the images.",
+                  );
+                }
+              }}
               type="file"
             />
           </div>

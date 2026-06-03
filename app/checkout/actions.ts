@@ -3,6 +3,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getServerCart, type ServerCartLine } from "@/lib/queries/cart";
+import {
+  buildHostedCheckout,
+  fawryConfigured,
+} from "@/lib/payments/fawry";
 
 type CheckoutDetails = {
   customer_name: string;
@@ -26,7 +30,7 @@ type CheckoutTotals = {
   totalCents: number;
 };
 
-type OrderPaymentMethod = "cash_on_delivery" | "stripe";
+type OrderPaymentMethod = "cash_on_delivery" | "stripe" | "fawry";
 
 export type StripeIntentResult =
   | {
@@ -34,6 +38,15 @@ export type StripeIntentResult =
       clientSecret: string;
       orderId: string;
       publishableKey: string;
+    }
+  | { ok: false; error: string };
+
+export type FawryCheckoutResult =
+  | {
+      ok: true;
+      action: string;
+      fields: Record<string, string>;
+      orderId: string;
     }
   | { ok: false; error: string };
 
@@ -145,6 +158,7 @@ async function insertOrderWithItems({
   paymentMethod,
   orderId,
   stripePaymentIntentId,
+  fawryMerchantRefNumber,
 }: {
   supabase: ReturnType<typeof createClient>;
   userId: string;
@@ -153,6 +167,7 @@ async function insertOrderWithItems({
   paymentMethod: OrderPaymentMethod;
   orderId?: string;
   stripePaymentIntentId?: string;
+  fawryMerchantRefNumber?: string;
 }) {
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -163,6 +178,9 @@ async function insertOrderWithItems({
       payment_method: paymentMethod,
       ...(stripePaymentIntentId
         ? { stripe_payment_intent_id: stripePaymentIntentId }
+        : {}),
+      ...(fawryMerchantRefNumber
+        ? { fawry_merchant_ref_number: fawryMerchantRefNumber }
         : {}),
       subtotal_cents: totals.subtotalCents,
       discount_cents: totals.discountCents,
@@ -212,7 +230,7 @@ async function insertOrderWithItems({
 
 function compactCartMetadata(cart: ServerCartLine[]) {
   return cart
-    .map((line) => `${line.productSlug}:${line.scentSlug}:${line.quantity}`)
+    .map((line) => `${line.productSlug}:${line.scentSlug ?? "-"}:${line.quantity}`)
     .join("|")
     .slice(0, 450);
 }
@@ -408,6 +426,98 @@ export async function createStripePaymentIntent(
         error instanceof Error
           ? error.message
           : "Stripe checkout could not start.",
+    };
+  }
+}
+
+export async function createFawryCheckout(
+  formData: FormData,
+): Promise<FawryCheckoutResult> {
+  if (!fawryConfigured()) {
+    return {
+      ok: false,
+      error:
+        "Fawry Pay is not configured yet. Set FAWRY_MERCHANT_CODE and FAWRY_SECURITY_KEY.",
+    };
+  }
+
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: "Sign in before paying with Fawry Pay." };
+  }
+
+  const details = readCheckoutDetails(formData, user.email || "");
+  const validationError = validateCheckoutDetails(details);
+  if (validationError) {
+    return { ok: false, error: validationError };
+  }
+
+  const customerMobile = getString(formData, "customer_mobile");
+  if (!customerMobile) {
+    return {
+      ok: false,
+      error: "Add a mobile number — Fawry needs it to send the receipt.",
+    };
+  }
+
+  const promoCode = getString(formData, "promo_code");
+
+  try {
+    const totals = await getCheckoutTotals(user.id, promoCode || null);
+
+    // Currency must be EGP for Fawry. Cents → EGP decimals.
+    const orderId = crypto.randomUUID();
+    const merchantRefNumber = orderId.replace(/-/g, "").slice(0, 32);
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
+      "http://localhost:3000";
+    const returnUrl =
+      process.env.FAWRY_RETURN_URL?.replace(/\/$/, "") ||
+      `${siteUrl}/api/fawry/callback`;
+
+    const checkout = buildHostedCheckout({
+      merchantRefNumber,
+      customerName: details.customer_name,
+      customerEmail: details.customer_email,
+      customerMobile,
+      customerProfileId: user.id,
+      returnUrl,
+      chargeItems: [
+        {
+          itemId: merchantRefNumber,
+          description: `Neuvesca order ${merchantRefNumber}`,
+          price: totals.totalCents / 100,
+          quantity: 1,
+        },
+      ],
+    });
+
+    await insertOrderWithItems({
+      supabase,
+      userId: user.id,
+      details,
+      totals,
+      paymentMethod: "fawry",
+      orderId,
+      fawryMerchantRefNumber: merchantRefNumber,
+    });
+
+    return {
+      ok: true,
+      action: checkout.action,
+      fields: checkout.fields,
+      orderId,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Fawry checkout could not start.",
     };
   }
 }

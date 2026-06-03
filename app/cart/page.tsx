@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/lib/cart/CartProvider";
-import { formatPrice, scentSwatchColor } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import {
   readStoredPromo,
   writeStoredPromo,
@@ -147,7 +147,7 @@ export default function CartPage() {
                 />
               ) : (
                 <span className="grid h-full w-full place-items-center [font-family:var(--serif)] text-[0.7rem] italic">
-                  neuvesca
+                  Neuvesca
                 </span>
               )}
             </Link>
@@ -159,14 +159,9 @@ export default function CartPage() {
               >
                 {line.productName}
               </Link>
-              <span className="cartLineScent">
-                <span
-                  aria-hidden
-                  className="swatch"
-                  style={{ background: scentSwatchColor(line.scentSlug) }}
-                />
-                {line.scentName}
-              </span>
+              {line.scentSlug && line.scentName && (
+                <span className="cartLineScent">{line.scentName}</span>
+              )}
               <div className="cartLineActions">
                 <div className="qtyStepper">
                   <button

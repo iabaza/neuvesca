@@ -10,7 +10,7 @@ export default async function AdminProductsPage() {
     supabase
       .from("products")
       .select(
-        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, is_active, stock_units,
+        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, stock_units, category,
          product_scents ( scent_id, note_role, sort_order )`,
       )
       .order("slug", { ascending: true }),

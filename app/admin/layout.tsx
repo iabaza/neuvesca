@@ -39,7 +39,7 @@ export default async function AdminLayout({
         <Link className="adminBrand" href="/admin">
           <span className="adminBrandMark">N</span>
           <span>
-            <span className="adminBrandTitle">neuvesca</span>
+            <span className="adminBrandTitle">NEUVESCA</span>
             <span className="adminBrandSub">admin</span>
           </span>
         </Link>

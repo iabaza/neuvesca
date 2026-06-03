@@ -1,7 +1,7 @@
 export type CartItem = {
-  id: string; // For DB rows = cart_items.id, for guest = `${productId}:${scentId}`
+  id: string; // For DB rows = cart_items.id, for guest = `${productId}:${scentId ?? "none"}`
   productId: string;
-  scentId: string;
+  scentId: string | null;
   quantity: number;
   productSlug: string;
   productName: string;
@@ -9,6 +9,6 @@ export type CartItem = {
   productTone: string | null;
   unitPriceCents: number;
   currency: string;
-  scentName: string;
-  scentSlug: string;
+  scentName: string | null;
+  scentSlug: string | null;
 };

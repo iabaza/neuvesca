@@ -11,12 +11,8 @@ export default function IngredientsPage() {
   return (
     <>
       <section className="pageIntro pageIntroCentered">
-        <p className="eyebrow">Inside every pour</p>
-        <h1>The ingredients we keep, in plain words.</h1>
-        <p className="lede">
-          A short, honest list of what fills our vessels — what it does, where
-          it&rsquo;s sourced, and how to handle it.
-        </p>
+        <p className="eyebrow">Within every pour</p>
+        <h1>The ingredients</h1>
       </section>
 
       <section className="section">

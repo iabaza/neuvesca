@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Studio | Neuvesca",
@@ -9,19 +8,19 @@ export const metadata: Metadata = {
 
 const principles = [
   {
-    label: "Restraint",
-    title: "Three notes, never twelve.",
-    body: "Every Neuvesca scent is built around a tight pyramid — a top, a heart, a base. Nothing competes for attention.",
+    label: "Focus",
+    title: "One note, done well.",
+    body: "Each Neuvesca candle centers on a single note, crafted with precision to ensure consistency, depth, and a quiet, lasting presence.",
   },
   {
     label: "Slow craft",
     title: "Poured by hand in small batches.",
-    body: "We pour weekly, in batches of forty. Each candle rests for ten days before it leaves the studio.",
+    body: "Every Neuvesca candle is poured upon order, preserving the freshness and integrity of each scent.",
   },
   {
     label: "Quiet materials",
-    title: "Soy coconut wax, cotton wicks, real glass.",
-    body: "Vessels are designed to outlive the candle — to keep flowers, hold sea salt, or simply sit on a shelf.",
+    title: "Beeswax, cotton wicks, and real glass.",
+    body: "Carefully chosen materials, each selected for their quality, purity, and the way they elevate every pour.",
   },
 ];
 
@@ -29,12 +28,13 @@ export default function AboutPage() {
   return (
     <>
       <section className="pageIntro pageIntroCentered">
-        <p className="eyebrow">The studio</p>
-        <h1>A small atelier for quietly luxurious rooms.</h1>
+        <p className="eyebrow">Our story</p>
+        <h1>A skin-focused brand for slow rituals.</h1>
         <p className="lede">
-          Neuvesca is poured in a converted printers&rsquo; studio at the edge
-          of the old quarter. We make candles for the kind of evenings you want
-          to keep — slow ones, with the lamps low and the music almost off.
+          Neuvesca was born from the idea that scents should be felt, not just
+          sensed. Each candle is carefully poured to melt into a warm,
+          nourishing body serum, blending skincare with ritual. When the light
+          is low, the pace softens, and care becomes intentional.
         </p>
       </section>
 
@@ -44,19 +44,18 @@ export default function AboutPage() {
 
       <section className="story aboutStory">
         <div className="storyCopy">
-          <p className="eyebrow">A note from the maker</p>
-          <h2>We started with one scent and an empty kitchen.</h2>
+          <p className="eyebrow">A note from the owner</p>
+          <h2>Crafted slowly, perfected for skin.</h2>
           <p>
-            Neuvesca began in 2021, in a top-floor flat with a single induction
-            burner and a borrowed thermometer. The first candle was a fig and
-            cedar pour, made for a friend&rsquo;s housewarming. People kept
-            asking where it came from — so, slowly, it became something.
-          </p>
-          <p>
-            Four years later, we still pour every candle by hand. We work with
-            a perfumer in the south of France for the oils, a glassmaker an
-            hour&rsquo;s drive away for the vessels, and a small letterpress
-            for the labels. Nothing is mass-produced. Nothing is rushed.
+            Neuvesca began in 2025, shaped through time and careful
+            experimentation as we tested countless blends to find the perfect
+            balance for our body serum candle. Every ingredient was chosen with
+            intention, refined again and again until the texture, warmth, and
+            absorption felt effortless on the skin. We are not mass-produced,
+            each pour is created slowly to maintain consistency and care. The
+            result is a candle that melts into a nourishing oil, transforming
+            everyday routines into sensorial, intentional rituals that feel
+            personal and quietly indulgent.
           </p>
         </div>
         <div className="storyImage aboutStoryImage" />
@@ -65,8 +64,8 @@ export default function AboutPage() {
       <section className="section principles">
         <div className="sectionHeader sectionHeaderCentered">
           <div>
-            <p className="eyebrow">How we work</p>
-            <h2>Three principles we don&rsquo;t bend on.</h2>
+            <p className="eyebrow">Our process</p>
+            <h2>Three principles we stand by</h2>
           </div>
         </div>
         <div className="principlesGrid">
@@ -82,15 +81,12 @@ export default function AboutPage() {
 
       <section className="aboutCta">
         <div>
-          <p className="eyebrow">The library</p>
-          <h2>Six candles, poured slowly.</h2>
+          <p className="eyebrow">The candles</p>
+          <h2>Six scents, poured slowly.</h2>
           <p>
-            The full collection is available now — each one designed for a
-            specific hour, room, and rhythm.
+            The full collection is available now, each scent is designed
+            personally for you.
           </p>
-          <Link className="button primary" href="/shop">
-            View the collection
-          </Link>
         </div>
       </section>
     </>

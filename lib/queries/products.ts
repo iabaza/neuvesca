@@ -1,18 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 
+export type ProductCategory = "candles" | "bundles" | "accessories";
+
 export type ProductRow = {
   id: string;
   slug: string;
   name: string;
   description: string;
   family: string;
-  burn_time_hours: number;
+  burn_time_hours: number | null;
   tone: string | null;
-  size_grams: number;
+  size_grams: number | null;
   price_cents: number;
   currency: string;
   image_url: string | null;
+  gallery_image_urls: string[];
   is_active: boolean;
+  category: ProductCategory;
 };
 
 export type ScentRow = {
@@ -74,7 +78,7 @@ export async function listActiveProducts(filters?: {
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, is_active,
+      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, category,
        product_scents ( note_role, sort_order, scents ( id, slug, name, description, family, image_url ) )`,
     )
     .eq("is_active", true)
@@ -122,7 +126,7 @@ export async function getProductBySlug(
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, is_active,
+      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, category,
        product_scents ( note_role, sort_order, scents ( id, slug, name, description, family, image_url ) ),
        product_ingredients ( sort_order, ingredients ( id, slug, name, description, safety_notes ) )`,
     )

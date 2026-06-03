@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProductBySlug } from "@/lib/queries/products";
 import { formatPrice } from "@/lib/format";
+import ProductGallery from "./ProductGallery";
 import ProductPurchasePanel from "./ProductPurchasePanel";
 
 type Params = { slug: string };
@@ -32,29 +33,18 @@ export default async function ProductDetailPage({
   const { composition, ingredients } = product;
   const priceLabel = formatPrice(product.price_cents, product.currency);
 
+  const galleryImages = [
+    product.image_url,
+    ...(product.gallery_image_urls ?? []),
+  ].filter((u): u is string => Boolean(u));
+  const fallbackImages =
+    galleryImages.length > 0 ? galleryImages : ["/images/redsign1.jpeg"];
+
   return (
     <article className="productDetail">
       <div className="productDetailMain">
         <aside className="productGallery">
-          <div className="productGalleryFrame">
-            {product.image_url ? (
-              <Image
-                alt={product.name}
-                fill
-                priority
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                src={product.image_url}
-              />
-            ) : (
-              <Image
-                alt={product.name}
-                fill
-                priority
-                sizes="(min-width: 1024px) 50vw, 100vw"
-                src="/images/redsign1.jpeg"
-              />
-            )}
-          </div>
+          <ProductGallery alt={product.name} images={fallbackImages} />
         </aside>
 
         <section className="productPanel">

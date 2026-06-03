@@ -1,20 +1,21 @@
+import Image from "next/image";
 import Link from "next/link";
 import { listActiveProducts } from "@/lib/queries/products";
 import { formatPrice } from "@/lib/format";
 
 const reviews = [
   {
-    quote: "The throw is elegant without taking over the room.",
+    quote: "The scent is soft, and the serum leaves my skin incredibly smooth.",
     name: "Eloise R.",
     place: "Copenhagen",
   },
   {
-    quote: "Looks beautiful unlit and even better during a slow dinner.",
+    quote: "Melts beautifully into a warm oil, perfect for slow, intentional evenings.",
     name: "Marguerite A.",
     place: "Lisbon",
   },
   {
-    quote: "A candle that actually feels considered from scent to vessel.",
+    quote: "Feels luxurious from the first light to the final touch on skin.",
     name: "Theo M.",
     place: "Brooklyn",
   },
@@ -40,41 +41,20 @@ export default async function Home() {
     <>
       <section className="hero">
         <div className="heroCopy">
-          <p className="eyebrow">Poured in small luminous batches</p>
-          <h1>Fragrance for rooms that deserve a softer pulse.</h1>
+          <p className="eyebrow">Body Serum Candle</p>
+          <h1>A candle that becomes a ritual for your skin</h1>
           <p className="lede">
-            Neuvesca crafts scented candles for lingering evenings, fresh sheets,
-            and the quiet minutes that make a place feel personal.
+            Neuvesca transforms candlelight into a warm body serum, crafted for
+            slow evenings, soft skin, and scents that feel personal.
           </p>
-          <div className="heroActions">
-            <Link className="button primary" href="/products">
-              Explore scents
-            </Link>
-            <Link className="button secondary" href="/about">
-              Our studio
-            </Link>
-          </div>
-          <div className="heroPanel">
-            <span>Current atmosphere</span>
-            <strong>White tea, fig leaf, clean cedar</strong>
-            <p>A pale, open scent for bedrooms, reading corners, and slow mornings.</p>
-          </div>
         </div>
         <div className="heroImage" aria-label="Neuvesca candle on a calm shelf" />
-      </section>
-
-      <section className="promise" aria-label="Brand promises">
-        <span>Soy coconut wax</span>
-        <span>Clean fragrance oils</span>
-        <span>Reusable glass vessels</span>
-        <span>45 hour burn</span>
       </section>
 
       <section className="section" id="shop">
         <div className="sectionHeader">
           <div>
-            <p className="eyebrow">Scent library</p>
-            <h2>The Neuvesca cabinet.</h2>
+            <h2>The Neuvesca Candles</h2>
           </div>
           <Link className="sectionLink" href="/products">View all scents</Link>
         </div>
@@ -88,19 +68,32 @@ export default async function Home() {
               <div className={`productVisual ${product.tone ?? ""}`}>
                 <div className="productMeta">
                   <span>{product.family}</span>
-                  <span>{product.burn_time_hours} hr burn</span>
+                  {product.burn_time_hours ? (
+                    <span>{product.burn_time_hours} hr burn</span>
+                  ) : null}
                 </div>
-                <div className="candle">
-                  <span>neuvesca</span>
-                </div>
+                {product.image_url ? (
+                  <Image
+                    alt={product.name}
+                    className="object-contain"
+                    fill
+                    sizes="(min-width: 980px) 30vw, 90vw"
+                    src={product.image_url}
+                  />
+                ) : (
+                  <div className="candle">
+                    <span>Neuvesca</span>
+                  </div>
+                )}
               </div>
               <div className="productInfo">
-                <h3>{product.name}</h3>
-                <p>{product.description}</p>
-                <div className="productCardFooter">
-                  <span className="productCardPrice">{formatPrice(product.price_cents, product.currency)}</span>
-                  <span className="productCardCta">View notes →</span>
+                <div className="productCardHeader">
+                  <h3>{product.name}</h3>
+                  <span className="productCardPrice">
+                    {formatPrice(product.price_cents, product.currency)}
+                  </span>
                 </div>
+                <p>{product.description}</p>
               </div>
             </Link>
           ))}
@@ -110,36 +103,35 @@ export default async function Home() {
       <section className="ritual" id="ritual">
         <div className="ritualIntro">
           <p className="eyebrow">Ritual</p>
-          <h2>Light. Bathe. Indulge.</h2>
+          <h2>Light. Melt. Nourish.</h2>
           <p>
-            Our body serum candle is rich with antioxidants, fatty acids, and
-            vitamins — leaving skin with a silky texture and a soft glow. A
-            three-step ritual to ignite your selfcare routine.
+            Our body serum candle is infused with a rich blend of shea butter
+            and botanical oils designed to hydrate deeply, soften texture, and
+            enhance natural glow.
           </p>
         </div>
         <div className="ritualGrid">
           <article>
             <span>Light</span>
-            <h3>Light the wick and let the serum melt to the edge of the glass.</h3>
+            <h3>Light the wick and allow the serum to melt for a few moments.</h3>
             <p>
-              Trim the wick between uses to keep your serum clean and burning
-              properly.
+              Let the flame settle as you pause, breathe deeply, and enjoy the
+              scent.
             </p>
           </article>
           <article>
-            <span>Bathe</span>
-            <h3>Escape under the warmth of a shower or a bath.</h3>
+            <span>Melt</span>
+            <h3>Let the warm serum melt into a pool of nourishment.</h3>
             <p>
-              Use this time to slow down and be intentional in your selfcare
-              ritual.
+              As the wick burns, allow the serum to melt slowly and evenly.
             </p>
           </article>
           <article>
-            <span>Indulge</span>
-            <h3>Pat your skin dry, check the temperature, then pour.</h3>
+            <span>Massage</span>
+            <h3>Apply the warm serum to your body, gently massaging it into your skin.</h3>
             <p>
-              Apply the warm serum to your body. Any unused serum will
-              resolidify for next time.
+              Apply the warm serum to your body, any excess will gently
+              solidify for future use.
             </p>
           </article>
         </div>
@@ -148,21 +140,22 @@ export default async function Home() {
       <section className="story" id="journal">
         <div className="storyImage" />
         <div className="storyCopy">
-          <p className="eyebrow">The Neuvesca standard</p>
-          <h2>A vessel, a room, a ritual. Nothing extra.</h2>
+          <p className="eyebrow">Our philosophy</p>
+          <h2>Skincare should be experienced, not rushed.</h2>
           <p>
-            Each candle is designed with a restrained fragrance pyramid, a
-            cotton wick, and a glass form intended to stay useful after the last
-            burn.
+            Neuvesca was born from candle rituals and skin science. Every
+            product is hand-poured using sustainably sourced botanical
+            ingredients, designed to transform your daily routine into a
+            moment of intentional nourishment.
           </p>
-          <Link className="storyLink" href="/about">Read our story</Link>
+          <Link className="storyLink" href="/about">Read Our story</Link>
         </div>
       </section>
 
       <section className="reviews" aria-label="Customer reviews">
         <div className="reviewsHeader">
-          <p className="eyebrow">Kept rooms, kept letters</p>
-          <h2>Quiet words from quieter homes.</h2>
+          <p className="eyebrow">Soft rituals, lasting impressions</p>
+          <h2>What it feels like, in their words</h2>
         </div>
         <div className="reviewsGrid">
           {reviews.map((review) => (

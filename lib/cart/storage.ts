@@ -1,6 +1,6 @@
 export type GuestCartLine = {
   productId: string;
-  scentId: string;
+  scentId: string | null;
   quantity: number;
 };
 
@@ -11,7 +11,7 @@ function isLine(value: unknown): value is GuestCartLine {
   const v = value as Record<string, unknown>;
   return (
     typeof v.productId === "string" &&
-    typeof v.scentId === "string" &&
+    (typeof v.scentId === "string" || v.scentId === null) &&
     typeof v.quantity === "number" &&
     v.quantity > 0
   );
@@ -37,6 +37,10 @@ export function setGuestCart(lines: GuestCartLine[]) {
 export function clearGuestCart() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
+}
+
+export function lineKey(productId: string, scentId: string | null) {
+  return `${productId}:${scentId ?? "none"}`;
 }
 
 export function mergeGuestLine(
