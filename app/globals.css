@@ -177,6 +177,77 @@ p {
   min-height: 560px;
 }
 
+.heroCarousel {
+  position: relative;
+  min-height: 560px;
+  overflow: hidden;
+}
+
+.heroCarouselSlide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 900ms ease-in-out;
+  pointer-events: none;
+}
+
+.heroCarouselSlide.is-active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.heroCarouselSlide::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(244, 236, 223, 0.96) 0%, rgba(244, 236, 223, 0.18) 24%, rgba(244, 236, 223, 0) 42%),
+    linear-gradient(180deg, rgba(244, 236, 223, 0) 65%, rgba(244, 236, 223, 0.6) 100%);
+  pointer-events: none;
+}
+
+.heroCarouselImage {
+  object-fit: cover;
+  object-position: center;
+}
+
+.heroCarouselDots {
+  position: absolute;
+  bottom: clamp(1.25rem, 2.5vw, 2rem);
+  right: clamp(1.25rem, 2.5vw, 2rem);
+  display: flex;
+  gap: 0.55rem;
+  z-index: 2;
+}
+
+.heroCarouselDot {
+  width: 28px;
+  height: 2px;
+  background: rgba(31, 26, 20, 0.3);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background 240ms ease, width 240ms ease;
+}
+
+.heroCarouselDot.is-active {
+  background: var(--ink);
+  width: 44px;
+}
+
+@media (max-width: 980px) {
+  .heroCarousel {
+    min-height: 56svh;
+    order: -1;
+  }
+}
+
+@media (max-width: 640px) {
+  .heroCarousel {
+    min-height: 48svh;
+  }
+}
+
 /* ─── Buttons ──────────────────────────────────────────────── */
 .button {
   border: 1px solid var(--ink);
@@ -1121,7 +1192,7 @@ p {
   aspect-ratio: 21 / 9;
   background:
     linear-gradient(rgba(244, 236, 223, 0.05), rgba(31, 26, 20, 0.18)),
-    url("/images/neuvesca-hero.png") center / cover no-repeat;
+    url("/images/about/about-hero.jpg") center / cover no-repeat;
   box-shadow: var(--shadow-soft);
 }
 
@@ -1131,6 +1202,9 @@ p {
 
 .aboutStoryImage {
   aspect-ratio: 4 / 5;
+  background:
+    linear-gradient(rgba(244, 236, 223, 0.05), rgba(31, 26, 20, 0.18)),
+    url("/images/about/about-story.jpg") center / cover no-repeat;
 }
 
 .aboutStory .storyCopy p + p {

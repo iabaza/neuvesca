@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { listActiveProducts } from "@/lib/queries/products";
 import { formatPrice } from "@/lib/format";
+import HeroCarousel from "@/components/HeroCarousel";
 
 const reviews = [
   {
@@ -48,7 +49,7 @@ export default async function Home() {
             slow evenings, soft skin, and scents that feel personal.
           </p>
         </div>
-        <div className="heroImage" aria-label="Neuvesca candle on a calm shelf" />
+        <HeroCarousel />
       </section>
 
       <section className="section" id="shop">
