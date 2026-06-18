@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getServerCart, type ServerCartLine } from "@/lib/queries/cart";
 import {
-  buildHostedCheckout,
-  fawryConfigured,
-} from "@/lib/payments/fawry";
+  createPaymobCheckout as createPaymobHostedCheckout,
+  paymobConfigured,
+} from "@/lib/payments/paymob";
 
 type CheckoutDetails = {
   customer_name: string;
@@ -30,7 +30,11 @@ type CheckoutTotals = {
   totalCents: number;
 };
 
-type OrderPaymentMethod = "cash_on_delivery" | "stripe" | "fawry";
+type OrderPaymentMethod =
+  | "cash_on_delivery"
+  | "stripe"
+  | "fawry"
+  | "paymob";
 
 export type StripeIntentResult =
   | {
@@ -41,11 +45,10 @@ export type StripeIntentResult =
     }
   | { ok: false; error: string };
 
-export type FawryCheckoutResult =
+export type PaymobCheckoutResult =
   | {
       ok: true;
-      action: string;
-      fields: Record<string, string>;
+      iframeUrl: string;
       orderId: string;
     }
   | { ok: false; error: string };
@@ -158,7 +161,8 @@ async function insertOrderWithItems({
   paymentMethod,
   orderId,
   stripePaymentIntentId,
-  fawryMerchantRefNumber,
+  paymobMerchantOrderId,
+  paymobOrderId,
 }: {
   supabase: ReturnType<typeof createClient>;
   userId: string;
@@ -167,7 +171,8 @@ async function insertOrderWithItems({
   paymentMethod: OrderPaymentMethod;
   orderId?: string;
   stripePaymentIntentId?: string;
-  fawryMerchantRefNumber?: string;
+  paymobMerchantOrderId?: string;
+  paymobOrderId?: number;
 }) {
   const { data: order, error: orderError } = await supabase
     .from("orders")
@@ -179,9 +184,10 @@ async function insertOrderWithItems({
       ...(stripePaymentIntentId
         ? { stripe_payment_intent_id: stripePaymentIntentId }
         : {}),
-      ...(fawryMerchantRefNumber
-        ? { fawry_merchant_ref_number: fawryMerchantRefNumber }
+      ...(paymobMerchantOrderId
+        ? { paymob_merchant_order_id: paymobMerchantOrderId }
         : {}),
+      ...(paymobOrderId ? { paymob_order_id: paymobOrderId } : {}),
       subtotal_cents: totals.subtotalCents,
       discount_cents: totals.discountCents,
       promo_code_id: totals.promoCodeId,
@@ -430,14 +436,14 @@ export async function createStripePaymentIntent(
   }
 }
 
-export async function createFawryCheckout(
+export async function createPaymobCheckout(
   formData: FormData,
-): Promise<FawryCheckoutResult> {
-  if (!fawryConfigured()) {
+): Promise<PaymobCheckoutResult> {
+  if (!paymobConfigured()) {
     return {
       ok: false,
       error:
-        "Fawry Pay is not configured yet. Set FAWRY_MERCHANT_CODE and FAWRY_SECURITY_KEY.",
+        "Card payment is not configured yet. Set PAYMOB_API_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_IFRAME_ID and PAYMOB_HMAC_SECRET.",
     };
   }
 
@@ -446,7 +452,7 @@ export async function createFawryCheckout(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) {
-    return { ok: false, error: "Sign in before paying with Fawry Pay." };
+    return { ok: false, error: "Sign in before paying by card." };
   }
 
   const details = readCheckoutDetails(formData, user.email || "");
@@ -459,7 +465,7 @@ export async function createFawryCheckout(
   if (!customerMobile) {
     return {
       ok: false,
-      error: "Add a mobile number — Fawry needs it to send the receipt.",
+      error: "Add a mobile number — it's required for card payment.",
     };
   }
 
@@ -468,31 +474,37 @@ export async function createFawryCheckout(
   try {
     const totals = await getCheckoutTotals(user.id, promoCode || null);
 
-    // Currency must be EGP for Fawry. Cents → EGP decimals.
     const orderId = crypto.randomUUID();
-    const merchantRefNumber = orderId.replace(/-/g, "").slice(0, 32);
-    const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-      "http://localhost:3000";
-    const returnUrl =
-      process.env.FAWRY_RETURN_URL?.replace(/\/$/, "") ||
-      `${siteUrl}/api/fawry/callback`;
+    const merchantOrderId = orderId.replace(/-/g, "").slice(0, 32);
 
-    const checkout = buildHostedCheckout({
-      merchantRefNumber,
-      customerName: details.customer_name,
-      customerEmail: details.customer_email,
-      customerMobile,
-      customerProfileId: user.id,
-      returnUrl,
-      chargeItems: [
+    const [firstName, ...rest] = details.customer_name.trim().split(/\s+/);
+    const lastName = rest.join(" ") || firstName || "Customer";
+    const country = (details.shipping_country || "EG").slice(0, 2).toUpperCase();
+
+    const checkout = await createPaymobHostedCheckout({
+      amountCents: totals.totalCents,
+      merchantOrderId,
+      items: [
         {
-          itemId: merchantRefNumber,
-          description: `Neuvesca order ${merchantRefNumber}`,
-          price: totals.totalCents / 100,
+          name: `Neuvesca order ${merchantOrderId}`,
+          amount_cents: totals.totalCents,
           quantity: 1,
         },
       ],
+      billing: {
+        first_name: firstName || "Customer",
+        last_name: lastName,
+        email: details.customer_email,
+        phone_number: customerMobile,
+        street: details.shipping_address_line1,
+        apartment: details.shipping_address_line2 || "NA",
+        building: "NA",
+        floor: "NA",
+        city: details.shipping_city,
+        state: details.shipping_region || "NA",
+        postal_code: details.shipping_postal_code,
+        country,
+      },
     });
 
     await insertOrderWithItems({
@@ -500,15 +512,15 @@ export async function createFawryCheckout(
       userId: user.id,
       details,
       totals,
-      paymentMethod: "fawry",
+      paymentMethod: "paymob",
       orderId,
-      fawryMerchantRefNumber: merchantRefNumber,
+      paymobMerchantOrderId: merchantOrderId,
+      paymobOrderId: checkout.paymobOrderId,
     });
 
     return {
       ok: true,
-      action: checkout.action,
-      fields: checkout.fields,
+      iframeUrl: checkout.iframeUrl,
       orderId,
     };
   } catch (error) {
@@ -517,7 +529,7 @@ export async function createFawryCheckout(
       error:
         error instanceof Error
           ? error.message
-          : "Fawry checkout could not start.",
+          : "Card checkout could not start.",
     };
   }
 }

@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { formatPrice } from "@/lib/format";
 import type { ServerCartLine } from "@/lib/queries/cart";
 import { readStoredPromo, type StoredPromo } from "@/lib/cart/promo";
-import { createFawryCheckout, placeOrder } from "./actions";
+import { createPaymobCheckout, placeOrder } from "./actions";
 
 function PayNowButton({
   method,
@@ -57,8 +57,8 @@ export default function CheckoutForm({
   error?: string;
 }) {
   const formRef = useRef<HTMLFormElement | null>(null);
-  const [isStartingFawry, setIsStartingFawry] = useState(false);
-  const [fawryMessage, setFawryMessage] = useState("");
+  const [isStartingCard, setIsStartingCard] = useState(false);
+  const [cardMessage, setCardMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("card");
   const [promo, setPromo] = useState<StoredPromo | null>(null);
 
@@ -71,43 +71,29 @@ export default function CheckoutForm({
     : 0;
   const totalCents = Math.max(0, subtotalCents - discountCents);
 
-  async function payWithFawry() {
+  async function payWithCard() {
     const form = formRef.current;
     if (!form) return;
     if (!form.reportValidity()) return;
 
-    setIsStartingFawry(true);
-    setFawryMessage("");
+    setIsStartingCard(true);
+    setCardMessage("");
 
     try {
-      const result = await createFawryCheckout(new FormData(form));
+      const result = await createPaymobCheckout(new FormData(form));
       if (!result.ok) {
-        setFawryMessage(result.error);
-        setIsStartingFawry(false);
+        setCardMessage(result.error);
+        setIsStartingCard(false);
         return;
       }
-
-      // Submit a hidden form to Fawry's hosted checkout.
-      const submit = document.createElement("form");
-      submit.method = "POST";
-      submit.action = result.action;
-      submit.style.display = "none";
-      for (const [name, value] of Object.entries(result.fields)) {
-        const input = document.createElement("input");
-        input.type = "hidden";
-        input.name = name;
-        input.value = value;
-        submit.appendChild(input);
-      }
-      document.body.appendChild(submit);
-      submit.submit();
+      window.location.href = result.iframeUrl;
     } catch (error) {
-      setFawryMessage(
+      setCardMessage(
         error instanceof Error
           ? error.message
           : "Card checkout could not start.",
       );
-      setIsStartingFawry(false);
+      setIsStartingCard(false);
     }
   }
 
@@ -232,16 +218,16 @@ export default function CheckoutForm({
           </label>
         </div>
 
-        {fawryMessage && (
+        {cardMessage && (
           <p className="authMessage" role="status">
-            {fawryMessage}
+            {cardMessage}
           </p>
         )}
 
         <PayNowButton
-          busy={isStartingFawry}
+          busy={isStartingCard}
           method={paymentMethod}
-          onCardClick={payWithFawry}
+          onCardClick={payWithCard}
         />
       </div>
 
