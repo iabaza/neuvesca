@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { formatPrice } from "@/lib/format";
 import type { ServerCartLine } from "@/lib/queries/cart";
 import { readStoredPromo, type StoredPromo } from "@/lib/cart/promo";
+import { calculateShippingCents } from "@/lib/checkout/shipping";
 import { createPaymobCheckout, placeOrder } from "./actions";
 
 function PayNowButton({
@@ -61,6 +62,8 @@ export default function CheckoutForm({
   const [cardMessage, setCardMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("card");
   const [promo, setPromo] = useState<StoredPromo | null>(null);
+  const [city, setCity] = useState("");
+  const [region, setRegion] = useState("");
 
   useEffect(() => {
     setPromo(readStoredPromo());
@@ -69,7 +72,9 @@ export default function CheckoutForm({
   const discountCents = promo
     ? Math.round((subtotalCents * promo.percent) / 100)
     : 0;
-  const totalCents = Math.max(0, subtotalCents - discountCents);
+  const shippingCents = calculateShippingCents(city, region);
+  const totalCents =
+    Math.max(0, subtotalCents - discountCents) + shippingCents;
 
   async function payWithCard() {
     const form = formRef.current;
@@ -138,11 +143,23 @@ export default function CheckoutForm({
       <div className="grid gap-5 md:grid-cols-2">
         <label>
           <span>City</span>
-          <input name="shipping_city" required type="text" />
+          <input
+            name="shipping_city"
+            onChange={(e) => setCity(e.target.value)}
+            required
+            type="text"
+            value={city}
+          />
         </label>
         <label>
-          <span>Region (optional)</span>
-          <input name="shipping_region" type="text" />
+          <span>Governorate (optional)</span>
+          <input
+            name="shipping_region"
+            onChange={(e) => setRegion(e.target.value)}
+            placeholder="e.g. Cairo, Giza, Alexandria"
+            type="text"
+            value={region}
+          />
         </label>
         <label>
           <span>Postal code</span>
@@ -166,6 +183,10 @@ export default function CheckoutForm({
               Promo <strong>{promo.code}</strong> applied — {promo.percent}% off (− {formatPrice(discountCents, currency)})
             </p>
           )}
+          <p className="text-[0.85rem] text-[var(--muted)]">
+            Shipping: {formatPrice(shippingCents, currency)}
+            {city || region ? "" : " (Cairo 100 EGP · Other 130 EGP)"}
+          </p>
           <p className="text-[0.85rem] text-[var(--muted)]">
             Total due: {formatPrice(totalCents, currency)}
           </p>

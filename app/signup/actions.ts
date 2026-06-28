@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 function getFormString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -39,38 +40,42 @@ export async function signUp(formData: FormData) {
     signupRedirect("Enter a phone number with at least 10 digits.");
   }
 
-  const supabase = createClient();
-  const { data, error } = await supabase.auth.signUp({
+  // Create the user with email pre-confirmed (skip the confirmation email).
+  const admin = createAdminClient();
+  const { data: created, error: createError } = await admin.auth.admin.createUser({
     email,
     password,
-    options: {
-      data: {
-        full_name: fullName,
-        phone,
-      },
+    email_confirm: true,
+    user_metadata: {
+      full_name: fullName,
+      phone,
     },
   });
 
-  if (error) {
+  if (createError || !created.user) {
+    const msg = createError?.message?.toLowerCase() ?? "";
+    if (msg.includes("already") || msg.includes("registered")) {
+      signupRedirect("That email is already registered. Try logging in.");
+    }
     signupRedirect("We could not create that account. Please try again.");
   }
 
-  // Save the phone (and full name) onto the public profile so the admin can see it.
-  // The profile row is auto-created by the auth trigger; we update it here.
-  if (data.user) {
-    await supabase
-      .from("profiles")
-      .update({ full_name: fullName, phone })
-      .eq("id", data.user.id);
+  // Save the phone (and full name) onto the public profile.
+  await admin
+    .from("profiles")
+    .update({ full_name: fullName, phone })
+    .eq("id", created!.user!.id);
+
+  // Sign the freshly-created user in so they land on the account page.
+  const supabase = createClient();
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (signInError) {
+    redirect("/login?next=/account");
   }
 
-  if (data.session) {
-    redirect("/account");
-  }
-
-  redirect(
-    `/signup?message=${encodeURIComponent(
-      "Check your email to confirm your Neuvesca account.",
-    )}`,
-  );
+  redirect("/account");
 }

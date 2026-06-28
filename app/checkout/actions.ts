@@ -7,6 +7,7 @@ import {
   createPaymobCheckout as createPaymobHostedCheckout,
   paymobConfigured,
 } from "@/lib/payments/paymob";
+import { calculateShippingCents } from "@/lib/checkout/shipping";
 
 type CheckoutDetails = {
   customer_name: string;
@@ -114,6 +115,7 @@ async function resolvePromo(
 async function getCheckoutTotals(
   userId: string,
   promoCode: string | null,
+  shippingCents: number,
 ): Promise<CheckoutTotals> {
   const supabase = createClient();
   const cart = await getServerCart(userId);
@@ -137,7 +139,6 @@ async function getCheckoutTotals(
     }
   }
 
-  const shippingCents = 0;
   const taxCents = 0;
   const totalCents = Math.max(0, subtotalCents - discountCents) + shippingCents + taxCents;
 
@@ -332,9 +333,17 @@ export async function placeOrder(formData: FormData) {
   if (validationError) back(validationError);
 
   const promoCode = getString(formData, "promo_code");
+  const shippingCents = calculateShippingCents(
+    details.shipping_city,
+    details.shipping_region,
+  );
   let orderId = "";
   try {
-    const totals = await getCheckoutTotals(user.id, promoCode || null);
+    const totals = await getCheckoutTotals(
+      user.id,
+      promoCode || null,
+      shippingCents,
+    );
     orderId = await insertOrderWithItems({
       supabase,
       userId: user.id,
@@ -393,9 +402,17 @@ export async function createStripePaymentIntent(
   const orderId = crypto.randomUUID();
   let paymentIntentId = "";
   const promoCode = getString(formData, "promo_code");
+  const shippingCents = calculateShippingCents(
+    details.shipping_city,
+    details.shipping_region,
+  );
 
   try {
-    const totals = await getCheckoutTotals(user.id, promoCode || null);
+    const totals = await getCheckoutTotals(
+      user.id,
+      promoCode || null,
+      shippingCents,
+    );
     const paymentIntent = await createStripeIntent({
       secretKey,
       orderId,
@@ -470,9 +487,17 @@ export async function createPaymobCheckout(
   }
 
   const promoCode = getString(formData, "promo_code");
+  const shippingCents = calculateShippingCents(
+    details.shipping_city,
+    details.shipping_region,
+  );
 
   try {
-    const totals = await getCheckoutTotals(user.id, promoCode || null);
+    const totals = await getCheckoutTotals(
+      user.id,
+      promoCode || null,
+      shippingCents,
+    );
 
     const orderId = crypto.randomUUID();
     const merchantOrderId = orderId.replace(/-/g, "").slice(0, 32);

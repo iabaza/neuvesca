@@ -84,7 +84,7 @@ export default async function CheckoutPage({
           </div>
           <div className="flex items-baseline justify-between text-[var(--muted)]">
             <span>Shipping</span>
-            <span>Calculated on delivery</span>
+            <span>Cairo 100 EGP · Other 130 EGP</span>
           </div>
           <div className="mt-2 flex items-baseline justify-between border-t border-[var(--line)] pt-3">
             <span className="eyebrow !mb-0">Total</span>
