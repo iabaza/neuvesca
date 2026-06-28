@@ -75,8 +75,20 @@ export async function updateSession(request: NextRequest) {
 
   if (user && isAuthRoute(pathname)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/account";
-    url.search = "";
+    const next = request.nextUrl.searchParams.get("next") ?? "";
+    const safeNext =
+      next.startsWith("/") && !next.startsWith("//") ? next : "/account";
+
+    // Allow ?next=/checkout etc. so authenticated users land on the page
+    // they were trying to reach instead of being sent to /account.
+    try {
+      const target = new URL(safeNext, url.origin);
+      url.pathname = target.pathname;
+      url.search = target.search;
+    } catch {
+      url.pathname = "/account";
+      url.search = "";
+    }
 
     return redirectWithCookies(url, supabaseResponse);
   }
