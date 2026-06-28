@@ -2079,6 +2079,44 @@ p {
   max-width: 32rem;
 }
 
+/* ─── Returns page ─────────────────────────────────────────── */
+.returnsBody {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.returnsBlock h2 {
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  margin: 0 0 1rem;
+}
+
+.returnsBlock p {
+  font-size: 1.02rem;
+  line-height: 1.8;
+  color: var(--ink-soft);
+}
+
+.returnsBlock ul {
+  display: grid;
+  gap: 0.85rem;
+  padding-left: 1.2rem;
+  margin-top: 0.8rem;
+}
+
+.returnsBlock li {
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--ink-soft);
+}
+
+.returnsBlock a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* ─── Contact refinement ───────────────────────────────────── */
 .contactDetails .contactItem {
   border-bottom: 1px solid var(--line-soft);
