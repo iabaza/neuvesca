@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { formatPrice } from "@/lib/format";
 import RefreshCartOnMount from "./RefreshCartOnMount";
 
@@ -24,16 +25,19 @@ export default async function CheckoutSuccessPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
-  const { data: order } = await supabase
+  // Guests can view their own success page too — read via admin client.
+  const reader = user ? supabase : createAdminClient();
+  const query = reader
     .from("orders")
     .select(
-      "id, total_cents, currency, customer_name, shipping_address_line1, shipping_city, shipping_postal_code, shipping_country, payment_method, status",
+      "id, total_cents, currency, customer_name, shipping_address_line1, shipping_city, shipping_postal_code, shipping_country, payment_method, status, user_id",
     )
-    .eq("id", orderId)
-    .eq("user_id", user.id)
-    .maybeSingle();
+    .eq("id", orderId);
+
+  const { data: order } = user
+    ? await query.eq("user_id", user.id).maybeSingle()
+    : await query.is("user_id", null).maybeSingle();
 
   if (!order) notFound();
 
@@ -64,9 +68,11 @@ export default async function CheckoutSuccessPage({
         <Link className="button primary" href="/products">
           Back to the cabinet
         </Link>
-        <Link className="button secondary" href="/account">
-          View account
-        </Link>
+        {user ? (
+          <Link className="button secondary" href="/account">
+            View account
+          </Link>
+        ) : null}
       </div>
     </section>
   );

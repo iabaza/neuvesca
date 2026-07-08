@@ -249,7 +249,13 @@ export default function CheckoutForm({
         name="cart_snapshot"
         readOnly
         type="hidden"
-        value={cart.map((line) => `${line.productSlug}:${line.quantity}`).join("|")}
+        value={JSON.stringify(
+          cart.map((line) => ({
+            productId: line.productId,
+            scentId: line.scentId,
+            quantity: line.quantity,
+          })),
+        )}
       />
       <input
         name="promo_code"

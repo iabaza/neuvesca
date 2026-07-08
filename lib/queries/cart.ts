@@ -7,7 +7,7 @@ export type ServerCartLine = {
   quantity: number;
   productSlug: string;
   productName: string;
-  productFamily: string;
+  productFamily: string | null;
   productImageUrl: string | null;
   productTone: string | null;
   unitPriceCents: number;

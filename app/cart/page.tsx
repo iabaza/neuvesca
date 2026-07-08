@@ -115,10 +115,6 @@ export default function CartPage() {
   const itemCount = items.reduce((sum, line) => sum + line.quantity, 0);
 
   function onCheckout() {
-    if (!isAuthenticated) {
-      router.push("/login?next=/checkout");
-      return;
-    }
     router.push("/checkout");
   }
 

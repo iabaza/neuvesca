@@ -23,7 +23,7 @@ export default async function AdminOrderDetailPage({
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, status, subtotal_cents, shipping_cents, tax_cents, total_cents, discount_cents, currency, customer_name, customer_email, shipping_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_region, shipping_postal_code, shipping_country, created_at, updated_at, promo_code_id",
+      "id, status, subtotal_cents, shipping_cents, tax_cents, total_cents, discount_cents, currency, customer_name, customer_email, customer_phone, shipping_name, shipping_address_line1, shipping_address_line2, shipping_city, shipping_region, shipping_postal_code, shipping_country, created_at, updated_at, promo_code_id, user_id",
     )
     .eq("id", params.id)
     .maybeSingle();
@@ -143,6 +143,11 @@ export default async function AdminOrderDetailPage({
           </div>
           <Field label="Name" value={order.customer_name} />
           <Field label="Email" value={order.customer_email} />
+          <Field label="Phone" value={order.customer_phone || "—"} />
+          <Field
+            label="Type"
+            value={order.user_id ? "Registered customer" : "Guest"}
+          />
           <Field label="Ship to" value={order.shipping_name} />
           <Field
             label="Address"

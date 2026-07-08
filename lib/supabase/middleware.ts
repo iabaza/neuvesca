@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "./env";
 
-const protectedRoutes = ["/account", "/checkout", "/admin"];
+const protectedRoutes = ["/account", "/admin"];
 const authRoutes = ["/login", "/signup"];
 
 function isProtectedRoute(pathname: string) {

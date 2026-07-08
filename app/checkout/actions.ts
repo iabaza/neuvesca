@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getServerCart, type ServerCartLine } from "@/lib/queries/cart";
 import {
   createPaymobCheckout as createPaymobHostedCheckout,
@@ -112,13 +113,117 @@ async function resolvePromo(
   return { id: data.id, percent: data.discount_percent };
 }
 
+type SnapshotLine = { productId: string; scentId: string | null; quantity: number };
+
+async function loadCartFromSnapshot(
+  snapshot: SnapshotLine[],
+): Promise<ServerCartLine[]> {
+  if (snapshot.length === 0) return [];
+  const supabase = createAdminClient();
+  const productIds = Array.from(new Set(snapshot.map((l) => l.productId)));
+  const scentIds = Array.from(
+    new Set(
+      snapshot
+        .map((l) => l.scentId)
+        .filter((s): s is string => Boolean(s)),
+    ),
+  );
+
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, slug, name, family, image_url, tone, price_cents, currency")
+    .in("id", productIds);
+  const { data: scents } = scentIds.length
+    ? await supabase.from("scents").select("id, slug, name").in("id", scentIds)
+    : { data: [] };
+
+  const productMap = new Map(
+    (products ?? []).map((p) => [
+      p.id as string,
+      p as {
+        id: string;
+        slug: string;
+        name: string;
+        family: string | null;
+        image_url: string | null;
+        tone: string | null;
+        price_cents: number;
+        currency: string;
+      },
+    ]),
+  );
+  const scentMap = new Map(
+    (scents ?? []).map((s) => [
+      s.id as string,
+      s as { id: string; slug: string; name: string },
+    ]),
+  );
+
+  return snapshot
+    .map((line): ServerCartLine | null => {
+      const p = productMap.get(line.productId);
+      if (!p) return null;
+      const s = line.scentId ? scentMap.get(line.scentId) ?? null : null;
+      if (line.scentId && !s) return null;
+      return {
+        id: `${line.productId}:${line.scentId ?? "none"}`,
+        productId: line.productId,
+        scentId: line.scentId,
+        quantity: Math.max(1, Math.min(99, Math.round(line.quantity))),
+        productSlug: p.slug,
+        productName: p.name,
+        productFamily: p.family ?? null,
+        productImageUrl: p.image_url,
+        productTone: p.tone,
+        unitPriceCents: p.price_cents,
+        currency: p.currency,
+        scentName: s?.name ?? null,
+        scentSlug: s?.slug ?? null,
+      };
+    })
+    .filter((l): l is ServerCartLine => Boolean(l));
+}
+
+function parseSnapshot(raw: string): SnapshotLine[] {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((row): SnapshotLine | null => {
+        if (!row || typeof row !== "object") return null;
+        const productId = typeof row.productId === "string" ? row.productId : "";
+        const scentId =
+          typeof row.scentId === "string" && row.scentId ? row.scentId : null;
+        const quantity = Number(row.quantity ?? 0);
+        if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
+          return null;
+        }
+        return { productId, scentId, quantity };
+      })
+      .filter((r): r is SnapshotLine => Boolean(r));
+  } catch {
+    return [];
+  }
+}
+
+async function resolveCart(
+  userId: string | null,
+  formData: FormData,
+): Promise<ServerCartLine[]> {
+  if (userId) {
+    const cart = await getServerCart(userId);
+    if (cart.length > 0) return cart;
+  }
+  const raw = getString(formData, "cart_snapshot");
+  return loadCartFromSnapshot(parseSnapshot(raw));
+}
+
 async function getCheckoutTotals(
-  userId: string,
+  cart: ServerCartLine[],
   promoCode: string | null,
   shippingCents: number,
 ): Promise<CheckoutTotals> {
   const supabase = createClient();
-  const cart = await getServerCart(userId);
   if (cart.length === 0) {
     throw new Error("Your cart is empty.");
   }
@@ -155,7 +260,6 @@ async function getCheckoutTotals(
 }
 
 async function insertOrderWithItems({
-  supabase,
   userId,
   details,
   totals,
@@ -164,9 +268,9 @@ async function insertOrderWithItems({
   stripePaymentIntentId,
   paymobMerchantOrderId,
   paymobOrderId,
+  customerPhone,
 }: {
-  supabase: ReturnType<typeof createClient>;
-  userId: string;
+  userId: string | null;
   details: CheckoutDetails;
   totals: CheckoutTotals;
   paymentMethod: OrderPaymentMethod;
@@ -174,7 +278,10 @@ async function insertOrderWithItems({
   stripePaymentIntentId?: string;
   paymobMerchantOrderId?: string;
   paymobOrderId?: number;
+  customerPhone?: string;
 }) {
+  // Use the admin client so guest orders (user_id null) bypass RLS.
+  const supabase = createAdminClient();
   const { data: order, error: orderError } = await supabase
     .from("orders")
     .insert({
@@ -198,6 +305,7 @@ async function insertOrderWithItems({
       currency: totals.currency,
       customer_email: details.customer_email,
       customer_name: details.customer_name,
+      customer_phone: customerPhone || null,
       shipping_name: details.customer_name,
       shipping_address_line1: details.shipping_address_line1,
       shipping_address_line2: details.shipping_address_line2 || null,
@@ -326,11 +434,11 @@ export async function placeOrder(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login?next=/checkout");
-
-  const details = readCheckoutDetails(formData, user.email || "");
+  const details = readCheckoutDetails(formData, user?.email || "");
   const validationError = validateCheckoutDetails(details);
   if (validationError) back(validationError);
+
+  const customerPhone = getString(formData, "customer_mobile");
 
   const promoCode = getString(formData, "promo_code");
   const shippingCents = calculateShippingCents(
@@ -339,21 +447,26 @@ export async function placeOrder(formData: FormData) {
   );
   let orderId = "";
   try {
+    const cart = await resolveCart(user?.id ?? null, formData);
+    if (cart.length === 0) {
+      back("Your cart is empty.");
+    }
     const totals = await getCheckoutTotals(
-      user.id,
+      cart,
       promoCode || null,
       shippingCents,
     );
     orderId = await insertOrderWithItems({
-      supabase,
-      userId: user.id,
+      userId: user?.id ?? null,
       details,
       totals,
       paymentMethod: "cash_on_delivery",
+      customerPhone: customerPhone || undefined,
     });
     if (totals.promoCodeId) {
       try {
-        await supabase.rpc("increment_promo_use", {
+        const admin = createAdminClient();
+        await admin.rpc("increment_promo_use", {
           promo_id: totals.promoCodeId,
         });
       } catch {
@@ -364,8 +477,11 @@ export async function placeOrder(formData: FormData) {
     back("We couldn't place your order. Please try again.");
   }
 
-  // Empty the cart now that the order is recorded.
-  await supabase.from("cart_items").delete().eq("user_id", user.id);
+  // Empty the cart now that the order is recorded (only for logged-in users;
+  // guests clear their local cart on the success page).
+  if (user) {
+    await supabase.from("cart_items").delete().eq("user_id", user.id);
+  }
 
   redirect(`/checkout/success?order=${orderId}`);
 }
@@ -408,8 +524,12 @@ export async function createStripePaymentIntent(
   );
 
   try {
+    const cart = await resolveCart(user.id, formData);
+    if (cart.length === 0) {
+      return { ok: false, error: "Your cart is empty." };
+    }
     const totals = await getCheckoutTotals(
-      user.id,
+      cart,
       promoCode || null,
       shippingCents,
     );
@@ -423,7 +543,6 @@ export async function createStripePaymentIntent(
     paymentIntentId = paymentIntent.id;
 
     await insertOrderWithItems({
-      supabase,
       userId: user.id,
       details,
       totals,
@@ -468,11 +587,8 @@ export async function createPaymobCheckout(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    return { ok: false, error: "Sign in before paying by card." };
-  }
 
-  const details = readCheckoutDetails(formData, user.email || "");
+  const details = readCheckoutDetails(formData, user?.email || "");
   const validationError = validateCheckoutDetails(details);
   if (validationError) {
     return { ok: false, error: validationError };
@@ -493,8 +609,12 @@ export async function createPaymobCheckout(
   );
 
   try {
+    const cart = await resolveCart(user?.id ?? null, formData);
+    if (cart.length === 0) {
+      return { ok: false, error: "Your cart is empty." };
+    }
     const totals = await getCheckoutTotals(
-      user.id,
+      cart,
       promoCode || null,
       shippingCents,
     );
@@ -533,14 +653,14 @@ export async function createPaymobCheckout(
     });
 
     await insertOrderWithItems({
-      supabase,
-      userId: user.id,
+      userId: user?.id ?? null,
       details,
       totals,
       paymentMethod: "paymob",
       orderId,
       paymobMerchantOrderId: merchantOrderId,
       paymobOrderId: checkout.paymobOrderId,
+      customerPhone: customerMobile,
     });
 
     return {
