@@ -13,6 +13,8 @@ type Props = {
   priceLabel: string;
   burnTimeHours: number | null;
   sizeGrams: number | null;
+  scentId: string | null;
+  onScentChange: (id: string) => void;
 };
 
 export default function ProductPurchasePanel({
@@ -21,13 +23,12 @@ export default function ProductPurchasePanel({
   priceLabel,
   burnTimeHours,
   sizeGrams,
+  scentId,
+  onScentChange,
 }: Props) {
   const router = useRouter();
   const { addToCart } = useCart();
   const hasScents = primaryScents.length > 0;
-  const [scentId, setScentId] = useState<string | null>(
-    primaryScents[0]?.id ?? null,
-  );
   const [quantity, setQuantity] = useState(1);
   const [isPending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
@@ -102,7 +103,7 @@ export default function ProductPurchasePanel({
                     aria-label={`Choose ${s.name}`}
                     aria-pressed={selected}
                     className="scentTileImage"
-                    onClick={() => setScentId(s.id)}
+                    onClick={() => onScentChange(s.id)}
                     type="button"
                   >
                     {img ? (

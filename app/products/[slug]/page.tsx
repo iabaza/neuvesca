@@ -3,9 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProductBySlug } from "@/lib/queries/products";
-import { formatPrice } from "@/lib/format";
-import ProductGallery from "./ProductGallery";
-import ProductPurchasePanel from "./ProductPurchasePanel";
+import ProductView from "./ProductView";
 
 type Params = { slug: string };
 
@@ -30,82 +28,9 @@ export default async function ProductDetailPage({
   const product = await getProductBySlug(params.slug);
   if (!product) notFound();
 
-  const { composition, ingredients } = product;
-  const priceLabel = formatPrice(product.price_cents, product.currency);
-
-  const galleryImages = [
-    product.image_url,
-    ...(product.gallery_image_urls ?? []),
-  ].filter((u): u is string => Boolean(u));
-  const fallbackImages =
-    galleryImages.length > 0 ? galleryImages : ["/images/redsign1.jpeg"];
-
   return (
     <article className="productDetail">
-      <div className="productDetailMain">
-        <aside className="productGallery">
-          <ProductGallery alt={product.name} images={fallbackImages} />
-        </aside>
-
-        <section className="productPanel">
-          <header className="productHeader">
-            <p className="eyebrow">{product.family}</p>
-            <h1>{product.name}</h1>
-            <p className="lede">{product.description}</p>
-          </header>
-
-          <ProductPurchasePanel
-            burnTimeHours={product.burn_time_hours}
-            priceLabel={priceLabel}
-            primaryScents={product.primary_scents}
-            productId={product.id}
-            sizeGrams={product.size_grams}
-          />
-
-          {(composition.top.length > 0 ||
-            composition.heart.length > 0 ||
-            composition.base.length > 0) && (
-            <section className="grid gap-3 border-t border-[var(--line-soft)] pt-6">
-              <p className="eyebrow !mb-0">Composition</p>
-              <dl className="grid gap-3">
-                {(["top", "heart", "base"] as const).map((role) => {
-                  const list = composition[role];
-                  if (list.length === 0) return null;
-                  return (
-                    <div className="grid grid-cols-[6rem_1fr] gap-3" key={role}>
-                      <dt className="text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
-                        {role}
-                      </dt>
-                      <dd className="[font-family:var(--serif)] text-[1.05rem] italic">
-                        {list.map((s) => s.name).join(", ")}
-                      </dd>
-                    </div>
-                  );
-                })}
-              </dl>
-            </section>
-          )}
-
-          <section className="grid gap-3 border-t border-[var(--line-soft)] pt-6">
-            <p className="eyebrow !mb-0">Ingredients</p>
-            <ul className="flex flex-wrap gap-x-3 gap-y-1.5 text-[0.95rem] text-[var(--ink-soft)]">
-              {ingredients.map((ing) => (
-                <li
-                  className="border border-[var(--line)] px-3 py-1.5"
-                  key={ing.id}
-                >
-                  <Link
-                    className="text-[0.78rem] uppercase tracking-[0.2em] hover:text-[var(--clay)]"
-                    href={`/ingredients#${ing.slug}`}
-                  >
-                    {ing.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        </section>
-      </div>
+      <ProductView product={product} />
 
       <section
         aria-label="The ritual"
