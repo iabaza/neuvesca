@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { scentImageUrl, formatPrice } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import type { ProductDetail } from "@/lib/queries/products";
 import ProductGallery from "./ProductGallery";
 import ProductPurchasePanel from "./ProductPurchasePanel";
@@ -27,17 +27,8 @@ export default function ProductView({ product }: Props) {
       product.image_url,
       ...(product.gallery_image_urls ?? []),
     ].filter((u): u is string => Boolean(u));
-
-    if (!hasScents || !selectedScent) {
-      return productImages.length > 0 ? productImages : ["/images/redsign1.jpeg"];
-    }
-
-    const scentImg = selectedScent.image_url ?? scentImageUrl(selectedScent.slug);
-    const rest = productImages.filter((u) => u !== scentImg);
-    const base = scentImg ? [scentImg, ...rest] : productImages;
-
-    return base.length > 0 ? base : ["/images/redsign1.jpeg"];
-  }, [selectedScent, product.image_url, product.gallery_image_urls, hasScents]);
+    return productImages.length > 0 ? productImages : ["/images/redsign1.jpeg"];
+  }, [product.image_url, product.gallery_image_urls]);
 
   const priceLabel = formatPrice(product.price_cents, product.currency);
   const { composition, ingredients } = product;
