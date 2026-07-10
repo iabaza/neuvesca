@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { signUp } from "./actions";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 export const metadata: Metadata = {
   title: "Create Account | Neuvesca",
@@ -90,6 +91,9 @@ export default function SignupPage({ searchParams }: SignupPageProps) {
               Create account
             </button>
           </form>
+
+          <div className="authDivider">or</div>
+          <GoogleSignInButton />
 
           <p className="authSwitch">
             Already have an account? <Link href="/login">Sign in</Link>

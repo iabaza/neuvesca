@@ -324,6 +324,10 @@ export function CartProvider({
   const updateQty = useCallback(
     async (lineId: string, quantity: number) => {
       const safe = Math.max(1, Math.min(99, Math.floor(quantity)));
+      // Optimistic update — no loading flash
+      setItems((prev) =>
+        prev.map((i) => (i.id === lineId ? { ...i, quantity: safe } : i)),
+      );
       if (userId) {
         await supabase
           .from("cart_items")
@@ -338,13 +342,14 @@ export function CartProvider({
         );
         setGuestCart(next);
       }
-      await refresh();
     },
-    [refresh, supabase, userId],
+    [supabase, userId],
   );
 
   const removeItem = useCallback(
     async (lineId: string) => {
+      // Optimistic update — no loading flash
+      setItems((prev) => prev.filter((i) => i.id !== lineId));
       if (userId) {
         await supabase.from("cart_items").delete().eq("id", lineId);
       } else {
@@ -353,9 +358,8 @@ export function CartProvider({
         );
         setGuestCart(guest);
       }
-      await refresh();
     },
-    [refresh, supabase, userId],
+    [supabase, userId],
   );
 
   const clearCart = useCallback(async () => {

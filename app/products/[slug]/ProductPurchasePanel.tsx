@@ -33,16 +33,21 @@ export default function ProductPurchasePanel({
   const [isPending, startTransition] = useTransition();
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
+  const [scentError, setScentError] = useState(false);
 
   const selectedScent = useMemo(
     () => primaryScents.find((s) => s.id === scentId) ?? null,
     [primaryScents, scentId],
   );
 
-  const canAdd = (!hasScents || Boolean(scentId)) && !adding && !isPending;
+  const canAdd = !adding && !isPending;
 
   async function onAdd() {
-    if (hasScents && !scentId) return;
+    if (hasScents && !scentId) {
+      setScentError(true);
+      return;
+    }
+    setScentError(false);
     setAdding(true);
     setAdded(false);
     try {
@@ -103,7 +108,7 @@ export default function ProductPurchasePanel({
                     aria-label={`Choose ${s.name}`}
                     aria-pressed={selected}
                     className="scentTileImage"
-                    onClick={() => onScentChange(s.id)}
+                    onClick={() => { onScentChange(s.id); setScentError(false); }}
                     type="button"
                   >
                     {img ? (
@@ -124,6 +129,11 @@ export default function ProductPurchasePanel({
 
           {selectedScent?.description && (
             <p className="scentDescription">{selectedScent.description}</p>
+          )}
+          {scentError && (
+            <p className="scentError" role="alert">
+              Please choose a scent before adding to bag.
+            </p>
           )}
         </fieldset>
       )}

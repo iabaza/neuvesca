@@ -10,9 +10,9 @@ function getFormString(formData: FormData, key: string) {
 }
 
 function normalizeNext(value: FormDataEntryValue | null) {
-  if (typeof value !== "string") return "/account";
-  if (!value.startsWith("/") || value.startsWith("//")) return "/account";
-  if (value.startsWith("/login") || value.startsWith("/signup")) return "/account";
+  if (typeof value !== "string") return "/products";
+  if (!value.startsWith("/") || value.startsWith("//")) return "/products";
+  if (value.startsWith("/login") || value.startsWith("/signup")) return "/products";
 
   return value;
 }

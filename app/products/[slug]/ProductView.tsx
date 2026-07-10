@@ -13,9 +13,7 @@ type Props = {
 
 export default function ProductView({ product }: Props) {
   const hasScents = product.primary_scents.length > 0;
-  const [scentId, setScentId] = useState<string | null>(
-    product.primary_scents[0]?.id ?? null,
-  );
+  const [scentId, setScentId] = useState<string | null>(null);
 
   const selectedScent = useMemo(
     () => product.primary_scents.find((s) => s.id === scentId) ?? null,

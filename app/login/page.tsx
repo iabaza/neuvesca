@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { login } from "./actions";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 
 export const metadata: Metadata = {
   title: "Sign In | Neuvesca",
@@ -15,8 +16,8 @@ type LoginPageProps = {
 };
 
 function getNext(next?: string) {
-  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/account";
-  if (next.startsWith("/login") || next.startsWith("/signup")) return "/account";
+  if (!next || !next.startsWith("/") || next.startsWith("//")) return "/products";
+  if (next.startsWith("/login") || next.startsWith("/signup")) return "/products";
 
   return next;
 }
@@ -78,6 +79,9 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
               Sign in
             </button>
           </form>
+
+          <div className="authDivider">or</div>
+          <GoogleSignInButton next={next} />
 
           <p className="authSwitch">
             New to Neuvesca? <Link href="/signup">Create an account</Link>

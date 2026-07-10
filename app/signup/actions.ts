@@ -74,8 +74,8 @@ export async function signUp(formData: FormData) {
   });
 
   if (signInError) {
-    redirect("/login?next=/account");
+    redirect("/login?next=/products");
   }
 
-  redirect("/account");
+  redirect("/products");
 }

@@ -1,5 +1,13 @@
 "use client";
 
+const EGYPT_GOVERNORATES = [
+  "Cairo", "Giza", "Alexandria", "Port Said", "Suez", "Ismailia",
+  "Damietta", "Dakahlia", "Sharqia", "Qalyubia", "Kafr el-Sheikh",
+  "Gharbia", "Monufia", "Beheira", "Faiyum", "Beni Suef", "Minya",
+  "Asyut", "Sohag", "Qena", "Luxor", "Aswan", "Red Sea",
+  "New Valley", "Matrouh", "North Sinai", "South Sinai",
+];
+
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { formatPrice } from "@/lib/format";
@@ -141,9 +149,23 @@ export default function CheckoutForm({
         <span>Address line 2 (optional)</span>
         <input name="shipping_address_line2" type="text" />
       </label>
+      <label>
+        <span>Governorate</span>
+        <select
+          name="shipping_region"
+          onChange={(e) => setRegion(e.target.value)}
+          required
+          value={region}
+        >
+          <option value="">Select governorate…</option>
+          {EGYPT_GOVERNORATES.map((g) => (
+            <option key={g} value={g}>{g}</option>
+          ))}
+        </select>
+      </label>
       <div className="grid gap-5 md:grid-cols-2">
         <label>
-          <span>City</span>
+          <span>City / District</span>
           <input
             name="shipping_city"
             onChange={(e) => setCity(e.target.value)}
@@ -153,24 +175,11 @@ export default function CheckoutForm({
           />
         </label>
         <label>
-          <span>Governorate (optional)</span>
-          <input
-            name="shipping_region"
-            onChange={(e) => setRegion(e.target.value)}
-            placeholder="e.g. Cairo, Giza, Alexandria"
-            type="text"
-            value={region}
-          />
-        </label>
-        <label>
           <span>Postal code</span>
-          <input name="shipping_postal_code" required type="text" />
-        </label>
-        <label>
-          <span>Country</span>
-          <input name="shipping_country" required type="text" />
+          <input name="shipping_postal_code" type="text" />
         </label>
       </div>
+      <input name="shipping_country" type="hidden" value="Egypt" />
 
       <div className="mt-2 grid gap-4 border-t border-[var(--line-soft)] pt-4">
         <div className="grid gap-2">
