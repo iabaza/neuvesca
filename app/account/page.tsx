@@ -57,9 +57,6 @@ export default async function AccountPage() {
               Go to dashboard
             </Link>
           )}
-          <Link className="button secondary" href="/products">
-            Back to store
-          </Link>
           <form action={signOut}>
             <button type="submit" className="button secondary">
               Sign out
