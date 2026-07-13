@@ -11,17 +11,33 @@ type Props = {
 export default function ProductGallery({ images, alt }: Props) {
   const safe = images.filter(Boolean);
   const [active, setActive] = useState(0);
+  const [direction, setDirection] = useState<"left" | "right">("right");
+  const [animKey, setAnimKey] = useState(0);
   const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     setActive(0);
+    setAnimKey((k) => k + 1);
   }, [images]);
 
-  const prev = useCallback(() =>
-    setActive((i) => (i - 1 + safe.length) % safe.length), [safe.length]);
+  const go = useCallback(
+    (idx: number, dir: "left" | "right") => {
+      setDirection(dir);
+      setActive(idx);
+      setAnimKey((k) => k + 1);
+    },
+    [],
+  );
 
-  const next = useCallback(() =>
-    setActive((i) => (i + 1) % safe.length), [safe.length]);
+  const prev = useCallback(
+    () => go((active - 1 + safe.length) % safe.length, "left"),
+    [active, safe.length, go],
+  );
+
+  const next = useCallback(
+    () => go((active + 1) % safe.length, "right"),
+    [active, safe.length, go],
+  );
 
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
@@ -36,6 +52,9 @@ export default function ProductGallery({ images, alt }: Props) {
 
   if (safe.length === 0) return null;
 
+  const enterClass =
+    direction === "right" ? "galleryImageEnterRight" : "galleryImageEnterLeft";
+
   return (
     <div className="productGalleryWrap">
       <div
@@ -43,13 +62,15 @@ export default function ProductGallery({ images, alt }: Props) {
         onTouchEnd={onTouchEnd}
         onTouchStart={onTouchStart}
       >
-        <Image
-          alt={alt}
-          fill
-          priority
-          sizes="(min-width: 1024px) 50vw, 100vw"
-          src={safe[active]}
-        />
+        <div className={`galleryImageSlot ${enterClass}`} key={animKey}>
+          <Image
+            alt={alt}
+            fill
+            priority
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            src={safe[active]}
+          />
+        </div>
 
         {safe.length > 1 && (
           <>
@@ -81,7 +102,7 @@ export default function ProductGallery({ images, alt }: Props) {
               aria-pressed={idx === active}
               className={`galleryDot${idx === active ? " galleryDotActive" : ""}`}
               key={idx}
-              onClick={() => setActive(idx)}
+              onClick={() => go(idx, idx > active ? "right" : "left")}
               type="button"
             />
           ))}
