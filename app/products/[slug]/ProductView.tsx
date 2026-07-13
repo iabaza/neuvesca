@@ -2,13 +2,13 @@
 
 import Image from "next/image";
 import { useState, useMemo } from "react";
-import { getIngredientItem } from "@/lib/ingredients-data";
-
-type Tab = "description" | "ingredients";
+import { INGREDIENT_ITEMS } from "@/lib/ingredients-data";
 import { formatPrice } from "@/lib/format";
 import type { ProductDetail } from "@/lib/queries/products";
 import ProductGallery from "./ProductGallery";
 import ProductPurchasePanel from "./ProductPurchasePanel";
+
+type Tab = "description" | "ingredients";
 
 type Props = {
   product: ProductDetail;
@@ -92,29 +92,22 @@ export default function ProductView({ product }: Props) {
             )}
             {tab === "ingredients" && (
               <div className="productIngredientGrid">
-                {ingredients.map((ing) => {
-                  const item = getIngredientItem(ing.slug);
-                  return (
-                    <div className="productIngredientCard" key={ing.id}>
-                      {item?.image && (
-                        <div className="productIngredientImg">
-                          <Image
-                            alt={ing.name}
-                            fill
-                            sizes="80px"
-                            src={item.image}
-                          />
-                        </div>
-                      )}
-                      <div className="productIngredientInfo">
-                        <span className="productIngredientName">{ing.name}</span>
-                        {item?.tagline && (
-                          <span className="productIngredientTagline">{item.tagline}</span>
-                        )}
-                      </div>
+                {INGREDIENT_ITEMS.map((item) => (
+                  <div className="productIngredientCard" key={item.slug}>
+                    <div className="productIngredientImg">
+                      <Image
+                        alt={item.name}
+                        fill
+                        sizes="80px"
+                        src={item.image}
+                      />
                     </div>
-                  );
-                })}
+                    <div className="productIngredientInfo">
+                      <span className="productIngredientName">{item.name}</span>
+                      <span className="productIngredientTagline">{item.tagline}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
