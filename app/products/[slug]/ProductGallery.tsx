@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 
 type Props = {
   images: string[];
@@ -11,112 +11,80 @@ type Props = {
 export default function ProductGallery({ images, alt }: Props) {
   const safe = images.filter(Boolean);
   const [active, setActive] = useState(0);
-  const thumbsRef = useRef<HTMLDivElement>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const touchStartX = useRef<number | null>(null);
 
-  // Reset active index when images change (scent switch)
   useEffect(() => {
     setActive(0);
   }, [images]);
 
-  // Keep active thumb scrolled into view
-  useEffect(() => {
-    const container = thumbsRef.current;
-    if (!container) return;
-    const thumb = container.children[active] as HTMLElement | undefined;
-    if (thumb) {
-      thumb.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-    }
-  }, [active]);
+  const prev = useCallback(() =>
+    setActive((i) => (i - 1 + safe.length) % safe.length), [safe.length]);
 
-  // Track scroll position to show/hide arrows
-  function updateArrows() {
-    const el = thumbsRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  const next = useCallback(() =>
+    setActive((i) => (i + 1) % safe.length), [safe.length]);
+
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX;
   }
 
-  useEffect(() => {
-    const el = thumbsRef.current;
-    if (!el) return;
-    updateArrows();
-    el.addEventListener("scroll", updateArrows, { passive: true });
-    const ro = new ResizeObserver(updateArrows);
-    ro.observe(el);
-    return () => {
-      el.removeEventListener("scroll", updateArrows);
-      ro.disconnect();
-    };
-  }, [images]);
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) diff > 0 ? next() : prev();
+    touchStartX.current = null;
+  }
 
   if (safe.length === 0) return null;
-  const current = safe[Math.min(active, safe.length - 1)];
-
-  function scrollThumbs(dir: "left" | "right") {
-    const el = thumbsRef.current;
-    if (!el) return;
-    el.scrollBy({ left: dir === "left" ? -160 : 160, behavior: "smooth" });
-  }
 
   return (
     <div className="productGalleryWrap">
-      <div className="productGalleryFrame">
+      <div
+        className="productGalleryFrame"
+        onTouchEnd={onTouchEnd}
+        onTouchStart={onTouchStart}
+      >
         <Image
           alt={alt}
           fill
           priority
           sizes="(min-width: 1024px) 50vw, 100vw"
-          src={current}
+          src={safe[active]}
         />
-      </div>
 
-      {safe.length > 1 && (
-        <div className="productGallerySlider">
-          {canScrollLeft && (
+        {safe.length > 1 && (
+          <>
             <button
-              aria-label="Scroll left"
-              className="productGalleryArrow productGalleryArrow--left"
-              onClick={() => scrollThumbs("left")}
+              aria-label="Previous image"
+              className="galleryArrow galleryArrow--prev"
+              onClick={prev}
               type="button"
             >
               ‹
             </button>
-          )}
-
-          <div
-            aria-label="Product images"
-            className="productGalleryThumbs"
-            ref={thumbsRef}
-          >
-            {safe.map((url, idx) => {
-              const isActive = idx === active;
-              return (
-                <button
-                  aria-label={`Show image ${idx + 1}`}
-                  aria-pressed={isActive}
-                  className="productGalleryThumb"
-                  key={`${url}-${idx}`}
-                  onClick={() => setActive(idx)}
-                  type="button"
-                >
-                  <Image alt="" fill sizes="80px" src={url} />
-                </button>
-              );
-            })}
-          </div>
-
-          {canScrollRight && (
             <button
-              aria-label="Scroll right"
-              className="productGalleryArrow productGalleryArrow--right"
-              onClick={() => scrollThumbs("right")}
+              aria-label="Next image"
+              className="galleryArrow galleryArrow--next"
+              onClick={next}
               type="button"
             >
               ›
             </button>
-          )}
+          </>
+        )}
+      </div>
+
+      {safe.length > 1 && (
+        <div aria-label="Image navigation" className="galleryDots">
+          {safe.map((_, idx) => (
+            <button
+              aria-label={`Go to image ${idx + 1}`}
+              aria-pressed={idx === active}
+              className={`galleryDot${idx === active ? " galleryDotActive" : ""}`}
+              key={idx}
+              onClick={() => setActive(idx)}
+              type="button"
+            />
+          ))}
         </div>
       )}
     </div>
