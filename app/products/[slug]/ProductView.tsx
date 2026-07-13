@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Image from "next/image";
 import { useState, useMemo } from "react";
+import { getIngredientItem } from "@/lib/ingredients-data";
 
 type Tab = "description" | "ingredients";
 import { formatPrice } from "@/lib/format";
@@ -82,22 +83,39 @@ export default function ProductView({ product }: Props) {
           <div className="productTabPanel" role="tabpanel">
             {tab === "description" && (
               <p className="text-[0.98rem] leading-[1.85] text-[var(--ink-soft)]">
-                {product.description}
+                Light the wick and let the wax pool transform into a warm,
+                nourishing serum. After ten minutes, blow out the flame, let
+                the pool settle for a moment, then pour into the palm and
+                massage into skin while still tepid. The candle becomes a
+                balm; the room keeps its quiet glow.
               </p>
             )}
             {tab === "ingredients" && (
-              <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
-                {ingredients.map((ing) => (
-                  <li key={ing.id}>
-                    <Link
-                      className="text-[0.78rem] uppercase tracking-[0.2em] text-[var(--ink-soft)] hover:text-[var(--clay)] border border-[var(--line)] px-3 py-1.5 inline-block"
-                      href={`/ingredients#${ing.slug}`}
-                    >
-                      {ing.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <div className="productIngredientGrid">
+                {ingredients.map((ing) => {
+                  const item = getIngredientItem(ing.slug);
+                  return (
+                    <div className="productIngredientCard" key={ing.id}>
+                      {item?.image && (
+                        <div className="productIngredientImg">
+                          <Image
+                            alt={ing.name}
+                            fill
+                            sizes="80px"
+                            src={item.image}
+                          />
+                        </div>
+                      )}
+                      <div className="productIngredientInfo">
+                        <span className="productIngredientName">{ing.name}</span>
+                        {item?.tagline && (
+                          <span className="productIngredientTagline">{item.tagline}</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>

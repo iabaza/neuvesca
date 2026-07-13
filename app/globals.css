@@ -1627,6 +1627,48 @@ p {
   min-height: 4rem;
 }
 
+.productIngredientGrid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.productIngredientCard {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.productIngredientImg {
+  flex: 0 0 52px;
+  height: 52px;
+  overflow: hidden;
+  position: relative;
+  width: 52px;
+}
+
+.productIngredientImg img {
+  object-fit: cover;
+}
+
+.productIngredientInfo {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.productIngredientName {
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.productIngredientTagline {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .productHeader .eyebrow {
   margin-bottom: 1rem;
 }
