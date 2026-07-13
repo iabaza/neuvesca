@@ -43,12 +43,6 @@ function ProductCard({ product }: { product: ProductListItem }) {
   return (
     <Link className="productCard" href={`/products/${product.slug}`}>
       <div className={`productVisual ${product.tone ?? ""}`}>
-        <div className="productMeta">
-          <span>{product.family}</span>
-          {product.burn_time_hours ? (
-            <span>{product.burn_time_hours} hr burn</span>
-          ) : null}
-        </div>
         {product.image_url ? (
           <Image
             alt={product.name}
@@ -100,6 +94,13 @@ function ProductCard({ product }: { product: ProductListItem }) {
             </span>
           </div>
         )}
+
+        <div className="productMeta">
+          <span>{product.family}</span>
+          {product.burn_time_hours ? (
+            <span>{product.burn_time_hours} hr burn</span>
+          ) : null}
+        </div>
 
         <div className="productCardFooter">
           <span className="productCardCta">View product →</span>
