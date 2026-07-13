@@ -1587,6 +1587,46 @@ p {
   gap: clamp(1.6rem, 2.4vw, 2.2rem);
 }
 
+/* Description / Ingredients tab toggle */
+.productTabs {
+  border-top: 1px solid var(--line-soft);
+  padding-top: 1.5rem;
+}
+
+.productTabBar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--line-soft);
+  margin-bottom: 1.25rem;
+}
+
+.productTab {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  margin-bottom: -1px;
+  padding: 0.65rem 1.25rem 0.65rem 0;
+  text-transform: uppercase;
+  transition: color 180ms ease, border-color 180ms ease;
+}
+
+.productTab:hover {
+  color: var(--ink);
+}
+
+.productTabActive {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+}
+
+.productTabPanel {
+  min-height: 4rem;
+}
+
 .productHeader .eyebrow {
   margin-bottom: 1rem;
 }

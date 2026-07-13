@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
+
+type Tab = "description" | "ingredients";
 import { formatPrice } from "@/lib/format";
 import type { ProductDetail } from "@/lib/queries/products";
 import ProductGallery from "./ProductGallery";
@@ -28,8 +30,9 @@ export default function ProductView({ product }: Props) {
     return productImages.length > 0 ? productImages : ["/images/redsign1.jpeg"];
   }, [product.image_url, product.gallery_image_urls]);
 
+  const [tab, setTab] = useState<Tab>("description");
   const priceLabel = formatPrice(product.price_cents, product.currency);
-  const { composition, ingredients } = product;
+  const { ingredients } = product;
 
   return (
     <div className="productDetailMain">
@@ -54,48 +57,50 @@ export default function ProductView({ product }: Props) {
           sizeGrams={product.size_grams}
         />
 
-        {(composition.top.length > 0 ||
-          composition.heart.length > 0 ||
-          composition.base.length > 0) && (
-          <section className="grid gap-3 border-t border-[var(--line-soft)] pt-6">
-            <p className="eyebrow !mb-0">Composition</p>
-            <dl className="grid gap-3">
-              {(["top", "heart", "base"] as const).map((role) => {
-                const list = composition[role];
-                if (list.length === 0) return null;
-                return (
-                  <div className="grid grid-cols-[6rem_1fr] gap-3" key={role}>
-                    <dt className="text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
-                      {role}
-                    </dt>
-                    <dd className="[font-family:var(--serif)] text-[1.05rem] italic">
-                      {list.map((s) => s.name).join(", ")}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
-          </section>
-        )}
+        <div className="productTabs">
+          <div className="productTabBar" role="tablist">
+            <button
+              aria-selected={tab === "description"}
+              className={`productTab${tab === "description" ? " productTabActive" : ""}`}
+              onClick={() => setTab("description")}
+              role="tab"
+              type="button"
+            >
+              Description
+            </button>
+            <button
+              aria-selected={tab === "ingredients"}
+              className={`productTab${tab === "ingredients" ? " productTabActive" : ""}`}
+              onClick={() => setTab("ingredients")}
+              role="tab"
+              type="button"
+            >
+              Ingredients
+            </button>
+          </div>
 
-        <section className="grid gap-3 border-t border-[var(--line-soft)] pt-6">
-          <p className="eyebrow !mb-0">Ingredients</p>
-          <ul className="flex flex-wrap gap-x-3 gap-y-1.5 text-[0.95rem] text-[var(--ink-soft)]">
-            {ingredients.map((ing) => (
-              <li
-                className="border border-[var(--line)] px-3 py-1.5"
-                key={ing.id}
-              >
-                <Link
-                  className="text-[0.78rem] uppercase tracking-[0.2em] hover:text-[var(--clay)]"
-                  href={`/ingredients#${ing.slug}`}
-                >
-                  {ing.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+          <div className="productTabPanel" role="tabpanel">
+            {tab === "description" && (
+              <p className="text-[0.98rem] leading-[1.85] text-[var(--ink-soft)]">
+                {product.description}
+              </p>
+            )}
+            {tab === "ingredients" && (
+              <ul className="flex flex-wrap gap-x-3 gap-y-1.5">
+                {ingredients.map((ing) => (
+                  <li key={ing.id}>
+                    <Link
+                      className="text-[0.78rem] uppercase tracking-[0.2em] text-[var(--ink-soft)] hover:text-[var(--clay)] border border-[var(--line)] px-3 py-1.5 inline-block"
+                      href={`/ingredients#${ing.slug}`}
+                    >
+                      {ing.name}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </section>
     </div>
   );
