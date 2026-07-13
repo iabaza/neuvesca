@@ -1476,15 +1476,23 @@ p {
 .productGallery {
   display: grid;
   gap: 1rem;
+  min-width: 0;
   position: sticky;
   top: 120px;
+  width: 100%;
+}
+
+.productGalleryWrap {
+  min-width: 0;
+  width: 100%;
 }
 
 .productGalleryFrame {
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 2 / 3;
   background: var(--cream);
   overflow: hidden;
   position: relative;
+  width: 100%;
 }
 
 .productGalleryFrame img {
@@ -1520,15 +1528,15 @@ p {
   background: var(--cream);
   border: 0;
   cursor: pointer;
-  flex: 0 0 76px;
-  height: 76px;
+  flex: 0 0 52px;
+  height: 78px;
   overflow: hidden;
   padding: 0;
   position: relative;
   scroll-snap-align: start;
   transition: opacity 240ms ease;
   opacity: 0.62;
-  width: 76px;
+  width: 52px;
 }
 
 .productGalleryThumb:hover,
@@ -1562,7 +1570,7 @@ p {
   display: flex;
   flex: 0 0 auto;
   font-size: 1.25rem;
-  height: 76px;
+  height: 78px;
   justify-content: center;
   line-height: 1;
   padding: 0;
