@@ -40,9 +40,10 @@ function ProductCard({ product }: { product: ProductListItem }) {
   const scentCount = product.primary_scents.length;
   const visibleScents = product.primary_scents.slice(0, 5);
   const overflow = scentCount - visibleScents.length;
+  const href = `/products/${product.slug}`;
   return (
-    <Link className="productCard" href={`/products/${product.slug}`}>
-      <div className={`productVisual ${product.tone ?? ""}`}>
+    <div className="productCard">
+      <Link aria-label={product.name} className={`productVisual ${product.tone ?? ""}`} href={href}>
         {product.image_url ? (
           <Image
             alt={product.name}
@@ -56,15 +57,17 @@ function ProductCard({ product }: { product: ProductListItem }) {
             <span>Neuvesca</span>
           </div>
         )}
-      </div>
+      </Link>
       <div className="productInfo">
-        <div className="productCardHeader">
-          <h3>{product.name}</h3>
-          <span className="productCardPrice">
-            {formatPrice(product.price_cents, product.currency)}
-          </span>
-        </div>
-        <p>{product.description}</p>
+        <Link className="productCardLink" href={href}>
+          <div className="productCardHeader">
+            <h3>{product.name}</h3>
+            <span className="productCardPrice">
+              {formatPrice(product.price_cents, product.currency)}
+            </span>
+          </div>
+          <p>{product.description}</p>
+        </Link>
 
         {scentCount > 0 && (
           <div className="productCardScents">
@@ -103,15 +106,29 @@ function ProductCard({ product }: { product: ProductListItem }) {
         </div>
 
         <div className="productCardFooter">
-          <span className="productCardCta">View product →</span>
+          <Link className="productCardCta" href={href}>View product →</Link>
+          <Link className="productCardBuyNow" href={href}>Buy now</Link>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
-export default async function ProductsPage() {
-  const products = await listActiveProducts();
+export default async function ProductsPage({
+  searchParams,
+}: {
+  searchParams: { q?: string };
+}) {
+  const allProducts = await listActiveProducts();
+  const query = searchParams.q?.trim().toLowerCase() ?? "";
+  const products = query
+    ? allProducts.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query) ||
+          p.description?.toLowerCase().includes(query) ||
+          p.family?.toLowerCase().includes(query),
+      )
+    : allProducts;
 
   const byCategory = new Map<ProductCategory, ProductListItem[]>();
   for (const p of products) {
@@ -124,6 +141,7 @@ export default async function ProductsPage() {
   return (
     <>
       <section className="shopHero">
+        <div aria-hidden="true" className="shopHeroOverlay" />
         <div className="shopHeroCopy">
           <p className="eyebrow">The shop</p>
           <h1>Body serum candles</h1>
@@ -137,9 +155,14 @@ export default async function ProductsPage() {
 
       <section className="shopBar">
         <span className="shopCount">
-          {products.length} {products.length === 1 ? "product" : "products"}
+          {query ? (
+            <>
+              {products.length} result{products.length !== 1 ? "s" : ""} for &ldquo;{query}&rdquo;
+            </>
+          ) : (
+            <>{products.length} {products.length === 1 ? "product" : "products"}</>
+          )}
         </span>
-        <span className="shopHint">Choose a scent at checkout</span>
       </section>
 
       <section className="section shopGrid">

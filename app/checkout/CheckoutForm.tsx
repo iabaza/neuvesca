@@ -185,8 +185,7 @@ export default function CheckoutForm({
         <div className="grid gap-2">
           <p className="eyebrow !mb-0">Payment</p>
           <p className="text-[0.85rem] text-[var(--ink-soft)]">
-            Your payment method&rsquo;s billing address must match the shipping
-            address. All transactions are secure and encrypted.
+            All transactions are secure and encrypted.
           </p>
           {promo && (
             <p className="text-[0.85rem] text-[var(--ink-soft)]">

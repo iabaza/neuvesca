@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart/CartProvider";
 
 const leftLinks = [
@@ -13,9 +13,17 @@ const leftLinks = [
 
 const rightLinks = [{ href: "/contact", label: "Contact" }];
 
+type SearchProduct = {
+  name: string;
+  slug: string;
+  image_url: string | null;
+  family: string | null;
+};
+
 type SiteHeaderNavProps = {
   initialCount: number;
   isAuthenticated: boolean;
+  searchProducts: SearchProduct[];
 };
 
 function Icon({ d, className }: { d: string; className?: string }) {
@@ -87,15 +95,36 @@ function NavLink({
 export default function SiteHeaderNav({
   initialCount,
   isAuthenticated,
+  searchProducts,
 }: SiteHeaderNavProps) {
   const navPath = usePathname();
+  const router = useRouter();
   const { count, isLoading } = useCart();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Close drawer on route change.
+  // Close drawer/search on route change.
   useEffect(() => {
     setDrawerOpen(false);
+    setSearchOpen(false);
+    setSearchQuery("");
   }, [navPath]);
+
+  // Focus input when search opens.
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus();
+  }, [searchOpen]);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = searchQuery.trim();
+    if (q) router.push(`/products?q=${encodeURIComponent(q)}`);
+    else router.push("/products");
+    setSearchOpen(false);
+    setSearchQuery("");
+  }
 
   // Lock body scroll while drawer open.
   useEffect(() => {
@@ -114,8 +143,14 @@ export default function SiteHeaderNav({
 
   return (
     <header className="sticky top-0 z-20 border-b border-[var(--line-soft)] bg-[var(--paper)]">
-      <div className="bg-[var(--ink)] px-4 py-3 text-center text-[0.7rem] font-normal uppercase tracking-[0.28em] text-[var(--cream)] max-sm:text-[0.62rem] max-sm:tracking-[0.22em]">
-        Spring pours now resting in the Neuvesca
+      <div className="announcementBar">
+        <div className="announcementTrack" aria-hidden="true">
+          {Array.from({ length: 20 }).map((_, i) => (
+            <span key={i} className="announcementItem">
+              Free shipping over E£1,500
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Desktop nav */}
@@ -141,6 +176,14 @@ export default function SiteHeaderNav({
           {rightLinks.map((link) => (
             <NavLink key={link.href} {...link} />
           ))}
+          <button
+            aria-label="Search"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--ink-soft)] transition-colors hover:text-[var(--ink)] hover:bg-[var(--cream)]"
+            onClick={() => setSearchOpen(true)}
+            type="button"
+          >
+            <Icon className="h-4 w-4" d="M11 19a8 8 0 1 1 5.3-14 8 8 0 0 1-5.3 14Zm6.6-2.4L21 20" />
+          </button>
 
           <Link
             aria-label={`Cart with ${displayCount} ${
@@ -174,16 +217,17 @@ export default function SiteHeaderNav({
           >
             <Icon className="h-5 w-5" d="M4 7h16M4 12h16M4 17h16" />
           </button>
-          <Link
+          <button
             aria-label="Search"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--ink)] transition-colors hover:bg-[var(--cream)]"
-            href="/products"
+            onClick={() => setSearchOpen(true)}
+            type="button"
           >
             <Icon
               className="h-5 w-5"
               d="M11 19a8 8 0 1 1 5.3-14 8 8 0 0 1-5.3 14Zm6.6-2.4L21 20"
             />
-          </Link>
+          </button>
         </div>
 
         <Link
@@ -221,6 +265,71 @@ export default function SiteHeaderNav({
           </Link>
         </div>
       </nav>
+
+      {/* Search overlay */}
+      {searchOpen && (
+        <div className="absolute inset-x-0 top-full z-30 border-b border-[var(--line-soft)] bg-[var(--paper)] shadow-sm">
+          <div className="px-[clamp(1.5rem,5vw,4rem)] py-4">
+            <form className="flex items-center gap-3" onSubmit={handleSearch}>
+              <Icon className="h-4 w-4 shrink-0 text-[var(--ink-soft)]" d="M11 19a8 8 0 1 1 5.3-14 8 8 0 0 1-5.3 14Zm6.6-2.4L21 20" />
+              <input
+                ref={searchInputRef}
+                className="flex-1 bg-transparent text-[0.9rem] text-[var(--ink)] placeholder:text-[var(--ink-soft)] outline-none"
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search products…"
+                type="text"
+                value={searchQuery}
+              />
+              <button
+                aria-label="Close search"
+                className="text-[var(--ink-soft)] hover:text-[var(--ink)]"
+                onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                type="button"
+              >
+                <Icon className="h-4 w-4" d="M6 6l12 12M18 6 6 18" />
+              </button>
+            </form>
+          </div>
+
+          {searchQuery.trim().length > 0 && (() => {
+            const q = searchQuery.trim().toLowerCase();
+            const results = searchProducts.filter(
+              (p) =>
+                p.name.toLowerCase().includes(q) ||
+                p.family?.toLowerCase().includes(q),
+            );
+            return (
+              <div className="border-t border-[var(--line-soft)] px-[clamp(1.5rem,5vw,4rem)] pb-4">
+                {results.length === 0 ? (
+                  <p className="py-3 text-[0.85rem] text-[var(--ink-soft)]">No products found.</p>
+                ) : (
+                  <ul className="divide-y divide-[var(--line-soft)]">
+                    {results.map((p) => (
+                      <li key={p.slug}>
+                        <Link
+                          className="flex items-center gap-3 py-3 text-[0.9rem] text-[var(--ink)] transition-colors hover:text-[var(--clay)]"
+                          href={`/products/${p.slug}`}
+                          onClick={() => { setSearchOpen(false); setSearchQuery(""); }}
+                        >
+                          {p.image_url && (
+                            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-sm bg-[var(--cream)]">
+                              <img alt="" className="h-full w-full object-cover" src={p.image_url} />
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium leading-tight">{p.name}</p>
+                            {p.family && <p className="text-[0.75rem] text-[var(--ink-soft)]">{p.family}</p>}
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Mobile drawer */}
       <div

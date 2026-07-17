@@ -221,8 +221,9 @@ p {
 }
 
 .heroCarouselDot {
-  width: 28px;
-  height: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
   background: rgba(31, 26, 20, 0.3);
   border: 0;
   padding: 0;
@@ -232,7 +233,7 @@ p {
 
 .heroCarouselDot.is-active {
   background: var(--ink);
-  width: 44px;
+  width: 18px;
 }
 
 @media (max-width: 980px) {
@@ -577,10 +578,15 @@ p {
   text-transform: uppercase;
 }
 
+.productCardLink {
+  color: inherit;
+  text-decoration: none;
+}
+
 .productCardFooter {
   align-items: baseline;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 1rem;
   margin-top: auto;
   padding-top: 0.95rem;
@@ -621,6 +627,25 @@ p {
 .productCard:hover .productCardCta {
   color: var(--clay);
   transform: translateX(2px);
+}
+
+.productCardBuyNow {
+  background: var(--ink);
+  border-radius: 2px;
+  color: var(--cream);
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  padding: 0.35rem 0.75rem;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: background 220ms ease;
+  white-space: nowrap;
+}
+
+.productCardBuyNow:hover {
+  background: var(--clay);
 }
 
 /* ─── Ingredients gallery ──────────────────────────────────── */
@@ -789,7 +814,7 @@ p {
   aspect-ratio: 4 / 5;
   background:
     linear-gradient(rgba(244, 236, 223, 0.05), rgba(31, 26, 20, 0.18)),
-    url("/images/neuvesca-hero.png") center / cover no-repeat;
+    url("/images/OurPhilosophy.jpeg") center / cover no-repeat;
   box-shadow: var(--shadow-soft);
 }
 
@@ -1091,6 +1116,37 @@ p {
   margin: 0;
 }
 
+/* ─── Announcement ticker ───────────────────────────────────── */
+.announcementBar {
+  background: var(--ink);
+  overflow: hidden;
+  padding: 0.65rem 0;
+}
+
+.announcementTrack {
+  display: flex;
+  width: max-content;
+  animation: marqueeScroll 30s linear infinite;
+  will-change: transform;
+}
+
+.announcementItem {
+  color: var(--cream);
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 3.5rem;
+}
+
+.announcementItem::after {
+  content: "·";
+  margin-left: 3.5rem;
+  opacity: 0.4;
+}
+
 /* ─── Shop bar / filters ───────────────────────────────────── */
 .shopBar {
   display: flex;
@@ -1099,6 +1155,7 @@ p {
   gap: 1.5rem;
   padding: 1.5rem clamp(1.5rem, 5vw, 5.5rem);
   background: var(--cream);
+  border-top: 1px solid var(--line-soft);
   border-bottom: 1px solid var(--line-soft);
   flex-wrap: wrap;
 }
@@ -1512,6 +1569,11 @@ p {
   object-fit: cover;
 }
 
+@keyframes marqueeScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
 @keyframes gallerySlideInRight {
   from { opacity: 0; transform: translateX(40px); }
   to   { opacity: 1; transform: translateX(0); }
@@ -1768,9 +1830,7 @@ p {
 }
 
 .scentPickerHeader .scentSelected::before {
-  color: var(--muted);
-  content: "—";
-  margin-right: 0.6rem;
+  content: none;
 }
 
 .scentRow {
@@ -1874,7 +1934,7 @@ p {
 }
 
 .scentError {
-  color: var(--clay);
+  color: #c0392b;
   font-size: 0.85rem;
   margin: 0.4rem 0 0;
 }
@@ -2224,21 +2284,22 @@ p {
 /* ─── Shop hero & filter ───────────────────────────────────── */
 .shopHero {
   position: relative;
-  overflow: hidden;
   background: url("/images/redsign3.jpeg") center / cover no-repeat;
-  border-bottom: 1px solid var(--line-soft);
   display: grid;
   align-items: end;
   min-height: clamp(280px, 36vh, 420px);
   padding: clamp(3rem, 6vw, 5rem) clamp(1.5rem, 5vw, 5.5rem);
 }
 
-.shopHero::before {
-  content: '';
+.shopHeroOverlay {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(244, 236, 223, 0.1) 0%, rgba(244, 236, 223, 0.95) 100%);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(244, 236, 223, 0.15) 0%, rgba(244, 236, 223, 1) 100%);
   pointer-events: none;
+  z-index: 0;
 }
 
 .shopHero .shopHeroCopy {

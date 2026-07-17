@@ -59,6 +59,21 @@ export default function ProductPurchasePanel({
     }
   }
 
+  async function onBuyNow() {
+    if (hasScents && !scentId) {
+      setScentError(true);
+      return;
+    }
+    setScentError(false);
+    setAdding(true);
+    try {
+      await addToCart(productId, hasScents ? scentId : null, quantity);
+      router.push("/checkout");
+    } finally {
+      setAdding(false);
+    }
+  }
+
   const ozLabel = sizeGrams ? (sizeGrams / 28.3495).toFixed(1) : null;
   const hasSpecs = burnTimeHours != null || sizeGrams != null;
 
@@ -164,7 +179,7 @@ export default function ProductPurchasePanel({
       <div className="productPriceRow">
         <span className="productPrice">{priceLabel}</span>
         <span className="productPriceNote">
-          Ships in reusable glass · Free over E£1,500
+          Ships in reusable glass · Free shipping over E£1,500
         </span>
       </div>
 
@@ -181,6 +196,15 @@ export default function ProductPurchasePanel({
             : hasScents && selectedScent
               ? `Add ${selectedScent.name} to bag`
               : "Add to bag"}
+      </button>
+
+      <button
+        className="button secondary full large"
+        disabled={!canAdd}
+        onClick={onBuyNow}
+        type="button"
+      >
+        {adding ? "Please wait…" : "Buy now"}
       </button>
     </div>
   );
