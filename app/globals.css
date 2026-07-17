@@ -29,10 +29,12 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
+  overflow-x: hidden;
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
@@ -1285,7 +1287,7 @@ p {
 
 /* ─── About page ───────────────────────────────────────────── */
 .aboutHero {
-  padding: 0 clamp(1.5rem, 5vw, 5.5rem) clamp(3rem, 5vw, 5rem);
+  padding: 0 0 clamp(3rem, 5vw, 5rem);
   background: var(--paper);
 }
 
@@ -1321,9 +1323,19 @@ p {
   text-align: center;
 }
 
+.sectionHeaderCentered > * {
+  text-align: center;
+  width: 100%;
+}
+
 .sectionHeaderCentered h2 {
   margin-left: auto;
   margin-right: auto;
+  text-align: center;
+}
+
+.sectionHeaderCentered .eyebrow {
+  text-align: center;
 }
 
 .principlesGrid {
@@ -2438,6 +2450,16 @@ p {
     grid-template-columns: 1fr;
   }
 
+  .aboutStory {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .aboutStory .storyCopy {
+    padding-left: clamp(1.5rem, 5vw, 5.5rem);
+    padding-right: clamp(1.5rem, 5vw, 5.5rem);
+  }
+
   .ritual {
     grid-template-columns: 1fr;
   }
@@ -2504,6 +2526,14 @@ p {
     grid-template-columns: 1fr;
   }
 
+  .aboutStoryImage {
+    width: 100%;
+    aspect-ratio: unset;
+    height: 72vw;
+    min-height: 300px;
+    margin: 0;
+  }
+
   .aboutHeroImage {
     aspect-ratio: 16 / 10;
   }
@@ -2519,6 +2549,16 @@ p {
   .ritual,
   .story,
   .reviews {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+
+  .aboutStory {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .aboutStory .storyCopy {
     padding-left: 1.25rem;
     padding-right: 1.25rem;
   }
@@ -2568,6 +2608,7 @@ p {
     gap: 3rem;
   }
 
+
   .productGridFull {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1.5rem 1rem;
@@ -2612,11 +2653,15 @@ p {
   }
 
   .pageIntro,
-  .aboutHero,
   .aboutCta,
   .contactSection {
     padding-left: 1.25rem;
     padding-right: 1.25rem;
+  }
+
+  .aboutHero {
+    padding-left: 0;
+    padding-right: 0;
   }
 
   .contactRow,

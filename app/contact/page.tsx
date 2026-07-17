@@ -107,6 +107,15 @@ export default function ContactPage() {
                 neuvescacosmetics@gmail.com
               </a>
             </p>
+            <p className="contactLine" style={{ marginTop: "0.6rem" }}>
+              <a
+                href="https://wa.me/201200265774"
+                rel="noreferrer"
+                target="_blank"
+              >
+                WhatsApp
+              </a>
+            </p>
           </div>
         </div>
       </section>

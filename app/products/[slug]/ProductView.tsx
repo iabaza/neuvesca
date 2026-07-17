@@ -31,7 +31,12 @@ export default function ProductView({ product }: Props) {
     return productImages.length > 0 ? productImages : ["/images/redsign1.jpeg"];
   }, [product.image_url, product.gallery_image_urls]);
 
-  const [tab, setTab] = useState<Tab>("description");
+  const showDescription = product.show_description_tab ?? true;
+  const showIngredients = product.show_ingredients_tab ?? true;
+  const showTabs = showDescription || showIngredients;
+
+  const defaultTab: Tab = showDescription ? "description" : "ingredients";
+  const [tab, setTab] = useState<Tab>(defaultTab);
   const priceLabel = formatPrice(product.price_cents, product.currency);
   const { ingredients } = product;
 
@@ -58,60 +63,66 @@ export default function ProductView({ product }: Props) {
           sizeGrams={product.size_grams}
         />
 
-        <div className="productTabs">
-          <div className="productTabBar" role="tablist">
-            <button
-              aria-selected={tab === "description"}
-              className={`productTab${tab === "description" ? " productTabActive" : ""}`}
-              onClick={() => setTab("description")}
-              role="tab"
-              type="button"
-            >
-              Description
-            </button>
-            <button
-              aria-selected={tab === "ingredients"}
-              className={`productTab${tab === "ingredients" ? " productTabActive" : ""}`}
-              onClick={() => setTab("ingredients")}
-              role="tab"
-              type="button"
-            >
-              Ingredients
-            </button>
-          </div>
+        {showTabs && (
+          <div className="productTabs">
+            <div className="productTabBar" role="tablist">
+              {showDescription && (
+                <button
+                  aria-selected={tab === "description"}
+                  className={`productTab${tab === "description" ? " productTabActive" : ""}`}
+                  onClick={() => setTab("description")}
+                  role="tab"
+                  type="button"
+                >
+                  Description
+                </button>
+              )}
+              {showIngredients && (
+                <button
+                  aria-selected={tab === "ingredients"}
+                  className={`productTab${tab === "ingredients" ? " productTabActive" : ""}`}
+                  onClick={() => setTab("ingredients")}
+                  role="tab"
+                  type="button"
+                >
+                  Ingredients
+                </button>
+              )}
+            </div>
 
-          <div className="productTabPanel" role="tabpanel">
-            {tab === "description" && (
-              <p className="text-[0.98rem] leading-[1.85] text-[var(--ink-soft)]">
-                Light the wick and let the wax pool transform into a warm,
-                nourishing serum. After ten minutes, blow out the flame, let
-                the pool settle for a moment, then pour into the palm and
-                massage into skin while still tepid. The candle becomes a
-                balm; the room keeps its quiet glow.
-              </p>
-            )}
-            {tab === "ingredients" && (
-              <div className="productIngredientGrid">
-                {INGREDIENT_ITEMS.map((item) => (
-                  <div className="productIngredientCard" key={item.slug}>
-                    <div className="productIngredientImg">
-                      <Image
-                        alt={item.name}
-                        fill
-                        sizes="80px"
-                        src={item.image}
-                      />
+            <div className="productTabPanel" role="tabpanel">
+              {tab === "description" && showDescription && (
+                <p className="text-[0.98rem] leading-[1.85] text-[var(--ink-soft)]">
+                  Light the wick and let the wax pool transform into a warm,
+                  nourishing serum. After ten minutes, blow out the flame, let
+                  the pool settle for a moment, then pour into the palm and
+                  massage into skin while still tepid. The candle becomes a
+                  balm; the room keeps its quiet glow.
+                </p>
+              )}
+              {tab === "ingredients" && showIngredients && (
+                <div className="productIngredientGrid">
+                  {INGREDIENT_ITEMS.map((item) => (
+                    <div className="productIngredientCard" key={item.slug}>
+                      <div className="productIngredientImg">
+                        <Image
+                          alt={item.name}
+                          fill
+                          sizes="80px"
+                          src={item.image}
+                        />
+                      </div>
+                      <div className="productIngredientInfo">
+                        <span className="productIngredientName">{item.name}</span>
+                        <span className="productIngredientTagline">{item.tagline}</span>
+                      </div>
                     </div>
-                    <div className="productIngredientInfo">
-                      <span className="productIngredientName">{item.name}</span>
-                      <span className="productIngredientTagline">{item.tagline}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </section>
     </div>
   );

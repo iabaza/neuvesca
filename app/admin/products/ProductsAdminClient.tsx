@@ -38,6 +38,8 @@ export type AdminProduct = {
   is_active: boolean;
   stock_units: number;
   category: AdminProductCategory;
+  show_description_tab: boolean;
+  show_ingredients_tab: boolean;
   product_scents: Array<{
     scent_id: string;
     note_role: "primary" | "top" | "heart" | "base";
@@ -57,6 +59,8 @@ type ProductForm = {
   gallery_image_urls: string[];
   scent_ids: string[];
   category: AdminProductCategory;
+  show_description_tab: boolean;
+  show_ingredients_tab: boolean;
 };
 
 const DEFAULT_FAMILY = "Scented";
@@ -75,6 +79,8 @@ function blankForm(): ProductForm {
     gallery_image_urls: [],
     scent_ids: [],
     category: "candles",
+    show_description_tab: true,
+    show_ingredients_tab: true,
   };
 }
 
@@ -97,6 +103,8 @@ function productToForm(product: AdminProduct): ProductForm {
     gallery_image_urls: product.gallery_image_urls ?? [],
     scent_ids,
     category: (product.category ?? "candles") as AdminProductCategory,
+    show_description_tab: product.show_description_tab ?? true,
+    show_ingredients_tab: product.show_ingredients_tab ?? true,
   };
 }
 
@@ -131,7 +139,7 @@ export default function ProductsAdminClient({
     const { data, error } = await supabase
       .from("products")
       .select(
-        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, stock_units, category,
+        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, stock_units, category, show_description_tab, show_ingredients_tab,
          product_scents ( scent_id, note_role, sort_order )`,
       )
       .order("slug", { ascending: true });
@@ -224,6 +232,8 @@ export default function ProductsAdminClient({
         is_active: true,
         stock_units: stockUnits,
         category: form.category,
+        show_description_tab: form.show_description_tab,
+        show_ingredients_tab: form.show_ingredients_tab,
       };
 
       if (!payload.slug || !payload.name || !payload.description) {
@@ -662,6 +672,52 @@ export default function ProductsAdminClient({
               }}
               type="file"
             />
+          </div>
+
+          <div className="adminFormRow">
+            <span className="adminFormLabel">Button visibility</span>
+            <div style={{ display: "grid", gap: "0.5rem" }}>
+              <label
+                style={{
+                  alignItems: "center",
+                  background: form.show_description_tab ? "var(--admin-line-soft)" : "transparent",
+                  border: "1px solid var(--admin-line)",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  display: "flex",
+                  fontSize: "0.85rem",
+                  gap: "0.6rem",
+                  padding: "0.55rem 0.8rem",
+                }}
+              >
+                <input
+                  checked={form.show_description_tab}
+                  onChange={(e) => updateField("show_description_tab", e.target.checked)}
+                  type="checkbox"
+                />
+                <span>Show <strong>Description</strong> tab on product page</span>
+              </label>
+              <label
+                style={{
+                  alignItems: "center",
+                  background: form.show_ingredients_tab ? "var(--admin-line-soft)" : "transparent",
+                  border: "1px solid var(--admin-line)",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  display: "flex",
+                  fontSize: "0.85rem",
+                  gap: "0.6rem",
+                  padding: "0.55rem 0.8rem",
+                }}
+              >
+                <input
+                  checked={form.show_ingredients_tab}
+                  onChange={(e) => updateField("show_ingredients_tab", e.target.checked)}
+                  type="checkbox"
+                />
+                <span>Show <strong>Ingredients</strong> tab on product page</span>
+              </label>
+            </div>
           </div>
 
           {message && <div className="adminToast">{message}</div>}

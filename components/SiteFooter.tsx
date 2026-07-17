@@ -73,6 +73,16 @@ export default function SiteFooter() {
                   Email
                 </a>
               </li>
+              <li>
+                <a
+                  className={linkClass}
+                  href="https://wa.me/201200265774"
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  WhatsApp
+                </a>
+              </li>
             </ul>
           </div>
 

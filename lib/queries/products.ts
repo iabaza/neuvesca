@@ -17,6 +17,8 @@ export type ProductRow = {
   gallery_image_urls: string[];
   is_active: boolean;
   category: ProductCategory;
+  show_description_tab: boolean;
+  show_ingredients_tab: boolean;
 };
 
 export type ScentRow = {
@@ -78,7 +80,7 @@ export async function listActiveProducts(filters?: {
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, category,
+      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab,
        product_scents ( note_role, sort_order, scents ( id, slug, name, description, family, image_url ) )`,
     )
     .eq("is_active", true)
@@ -126,7 +128,7 @@ export async function getProductBySlug(
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, category,
+      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab,
        product_scents ( note_role, sort_order, scents ( id, slug, name, description, family, image_url ) ),
        product_ingredients ( sort_order, ingredients ( id, slug, name, description, safety_notes ) )`,
     )

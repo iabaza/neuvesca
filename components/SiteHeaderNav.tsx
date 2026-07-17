@@ -142,7 +142,7 @@ export default function SiteHeaderNav({
   const accountLabel = isAuthenticated ? "Account" : "Login";
 
   return (
-    <header className="sticky top-0 z-20 border-b border-[var(--line-soft)] bg-[var(--paper)]">
+    <header className="sticky top-0 z-20 border-b border-[var(--line-soft)] bg-[var(--paper)] overflow-x-hidden w-full">
       <div className="announcementBar">
         <div className="announcementTrack" aria-hidden="true">
           {Array.from({ length: 20 }).map((_, i) => (
