@@ -7,15 +7,15 @@ type Slide = { src: string; alt: string };
 
 const slides: Slide[] = [
   {
-    src: "/images/hero/hero-1.jpg",
+    src: "/images/hero/hero-1.jpeg",
     alt: "Three Neuvesca body serum candles burning beside dried botanicals.",
   },
   {
-    src: "/images/hero/hero-2.jpg",
+    src: "/images/hero/hero-2.jpeg",
     alt: "A stack of Neuvesca body serum candle jars beside driftwood.",
   },
   {
-    src: "/images/hero/hero-3.jpg",
+    src: "/images/hero/hero-3.jpeg",
     alt: "A Neuvesca body serum candle lit beside a brass lantern.",
   },
 ];
