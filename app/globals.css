@@ -3094,7 +3094,8 @@ p {
   background: var(--admin-surface);
   border: 1px solid var(--admin-line);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .adminTable {
@@ -3512,5 +3513,176 @@ p {
   .adminSplit,
   .scentEditLayout {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Admin orders mobile cards */
+.adminOrderCardList {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.adminOrderCard {
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  color: var(--admin-ink);
+  display: grid;
+  gap: 0.5rem;
+  padding: 1rem 1.1rem;
+  text-decoration: none;
+  transition: background 150ms ease;
+}
+
+.adminOrderCard:hover {
+  background: #fbfaf6;
+}
+
+.adminOrderCardTop {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.adminOrderCardId {
+  font-family: var(--mono, monospace);
+  font-size: 0.8rem;
+  color: var(--admin-muted);
+}
+
+.adminOrderCardCustomer {
+  display: grid;
+  font-size: 0.92rem;
+  font-weight: 500;
+  gap: 0.15rem;
+  line-height: 1.3;
+}
+
+.adminOrderCardEmail {
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.adminOrderCardBottom {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.1rem;
+}
+
+.adminOrderCardDate {
+  color: var(--admin-muted);
+  font-size: 0.75rem;
+}
+
+.adminOrderCardTotal {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.adminHideOnMobile { display: block; }
+.adminShowOnMobile { display: none; }
+
+@media (max-width: 640px) {
+  .adminHideOnMobile { display: none !important; }
+  .adminShowOnMobile { display: block !important; }
+}
+
+@media (max-width: 640px) {
+  /* Sidebar → compact horizontal top nav bar */
+  .adminSidebar {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.55rem 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .adminBrand {
+    border-bottom: 0;
+    border-right: 1px solid var(--admin-line-soft);
+    flex-shrink: 0;
+    margin-right: 0.5rem;
+    padding: 0 0.75rem 0 0;
+  }
+  /* Hide "NEUVESCA admin" text, show only the N mark */
+  .adminBrandTitle,
+  .adminBrandSub {
+    display: none;
+  }
+  .adminNav {
+    align-items: center;
+    flex-direction: row;
+    flex-shrink: 0;
+    gap: 0.1rem;
+  }
+  .adminNavLink {
+    align-items: center;
+    flex-direction: column;
+    font-size: 0.58rem;
+    gap: 0.2rem;
+    padding: 0.4rem 0.55rem;
+  }
+  /* Hide text label, keep icon — show label below icon in tiny text */
+  .adminNavLink svg {
+    width: 16px;
+    height: 16px;
+  }
+  /* Push profile to the far right */
+  .adminSidebarActions {
+    border-top: 0;
+    display: none;
+    padding-top: 0;
+  }
+  .adminProfile {
+    border-left: 1px solid var(--admin-line-soft);
+    border-top: 0;
+    flex-shrink: 0;
+    margin-left: auto;
+    margin-top: 0;
+    padding: 0 0 0 0.75rem;
+  }
+  .adminProfileMeta {
+    display: none;
+  }
+
+  /* Main content padding on mobile */
+  .adminMain {
+    padding: 1.2rem 0.85rem 2.5rem;
+  }
+
+  /* Stat grid → 2 columns on phone */
+  .adminStatGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* Table scroll in adminCard (dashboard tables not wrapped in adminTableWrap) */
+  .adminCard {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .adminTable {
+    min-width: 420px;
+  }
+
+  /* Page header stacks nicely */
+  .adminPageHead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .adminButtonRow {
+    width: 100%;
+    display: flex;
+    gap: 0.5rem;
+  }
+  .adminButtonRow .adminButton {
+    flex: 1;
+    text-align: center;
   }
 }

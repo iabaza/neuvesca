@@ -9,6 +9,7 @@ import {
   paymobConfigured,
 } from "@/lib/payments/paymob";
 import { calculateShippingCents } from "@/lib/checkout/shipping";
+import { sendNewOrderNotification } from "@/lib/email";
 
 type CheckoutDetails = {
   customer_name: string;
@@ -339,6 +340,30 @@ async function insertOrderWithItems({
   if (itemsError) {
     throw new Error(itemsError.message || "We couldn't save your order items.");
   }
+
+  const shippingParts = [
+    details.shipping_address_line1,
+    details.shipping_address_line2,
+    details.shipping_city,
+    details.shipping_region,
+    details.shipping_postal_code,
+    details.shipping_country,
+  ].filter(Boolean);
+
+  sendNewOrderNotification({
+    orderId: order.id,
+    customerName: details.customer_name,
+    customerEmail: details.customer_email,
+    totalCents: totals.totalCents,
+    currency: totals.currency,
+    items: totals.cart.map((l) => ({
+      productName: l.productName,
+      quantity: l.quantity,
+      unitPriceCents: l.unitPriceCents,
+    })),
+    shippingAddress: shippingParts.join(", "),
+    paymentMethod: paymentMethod,
+  }).catch(() => {});
 
   return order.id;
 }
