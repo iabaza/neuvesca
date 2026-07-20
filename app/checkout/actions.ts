@@ -355,6 +355,9 @@ async function insertOrderWithItems({
     customerName: details.customer_name,
     customerEmail: details.customer_email,
     totalCents: totals.totalCents,
+    subtotalCents: totals.subtotalCents,
+    discountCents: totals.discountCents,
+    shippingCents: totals.shippingCents,
     currency: totals.currency,
     items: totals.cart.map((l) => ({
       productName: l.productName,
