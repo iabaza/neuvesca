@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import twilio from "twilio";
 import { formatPrice } from "@/lib/format";
 
 function getTransporter() {
@@ -149,6 +150,33 @@ function buildReceiptHtml(args: OrderEmailArgs): string {
 </html>`;
 }
 
+async function sendSmsNotification(args: OrderEmailArgs) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM;
+  if (!accountSid || !authToken || !from) return;
+
+  const shortId = args.orderId.slice(0, 8).toUpperCase();
+  const itemLines = args.items
+    .map((i) => `- ${i.productName} x${i.quantity}`)
+    .join("\n");
+
+  const message =
+    `New Neuvesca Order! #${shortId}\n` +
+    `Customer: ${args.customerName}\n` +
+    `Total: ${formatPrice(args.totalCents, args.currency)}\n` +
+    `Payment: ${args.paymentMethod.replace(/_/g, " ")}\n\n` +
+    `Items:\n${itemLines}\n\n` +
+    `Ship to: ${args.shippingAddress}`;
+
+  const client = twilio(accountSid, authToken);
+  await client.messages.create({
+    body: message,
+    from,
+    to: "whatsapp:+201016112726",
+  });
+}
+
 export async function sendNewOrderNotification(args: OrderEmailArgs) {
   const transporter = getTransporter();
   if (!transporter) return;
@@ -163,7 +191,7 @@ export async function sendNewOrderNotification(args: OrderEmailArgs) {
   const adminText = `New order on Neuvesca!\n\nOrder ID : ${shortId}\nCustomer : ${args.customerName} <${args.customerEmail}>\nPayment  : ${args.paymentMethod.replace(/_/g, " ")}\nTotal    : ${formatPrice(args.totalCents, args.currency)}\n\nItems:\n${itemRows}\n\nShip to:\n${args.shippingAddress}\n\nView order → ${adminUrl}`;
 
   await Promise.all([
-    // Admin notification
+    // Admin email notification
     transporter.sendMail({
       from: `"Neuvesca Orders" <${process.env.EMAIL_USER}>`,
       to: "Neuvescacosmetics@gmail.com",
@@ -181,5 +209,7 @@ export async function sendNewOrderNotification(args: OrderEmailArgs) {
           }),
         ]
       : []),
+    // SMS notification
+    sendSmsNotification(args).catch(() => {}),
   ]);
 }

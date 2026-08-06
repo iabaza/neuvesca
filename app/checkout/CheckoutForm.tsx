@@ -68,7 +68,6 @@ export default function CheckoutForm({
   const formRef = useRef<HTMLFormElement | null>(null);
   const [isStartingCard, setIsStartingCard] = useState(false);
   const [cardMessage, setCardMessage] = useState("");
-  // Card payments are temporarily disabled — only COD for now.
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("cod");
   const [promo, setPromo] = useState<StoredPromo | null>(null);
   const [city, setCity] = useState("");
@@ -203,15 +202,13 @@ export default function CheckoutForm({
 
         <div className="grid gap-3">
           <label
-            className="flex items-start gap-3 border border-[var(--line)] bg-[var(--cream)] p-4 opacity-60"
-            title="Card payment is temporarily disabled"
+            className="flex cursor-pointer items-start gap-3 border border-[var(--line)] bg-[var(--cream)] p-4"
           >
             <input
-              checked={false}
+              checked={paymentMethod === "card"}
               className="mt-1"
-              disabled
               name="payment_choice"
-              readOnly
+              onChange={() => setPaymentMethod("card")}
               type="radio"
               value="card"
             />
@@ -220,7 +217,7 @@ export default function CheckoutForm({
                 Pay via (Debit/Credit cards/Wallets/Installments)
               </span>
               <span className="text-[0.78rem] uppercase tracking-[0.2em] text-[var(--muted)]">
-                Coming soon
+                Powered by Paymob
               </span>
             </div>
           </label>
