@@ -178,10 +178,14 @@ async function sendSmsNotification(args: OrderEmailArgs) {
 }
 
 export async function sendNewOrderNotification(args: OrderEmailArgs) {
-  const transporter = getTransporter();
-  if (!transporter) return;
-
   const shortId = args.orderId.slice(0, 8).toUpperCase();
+
+  // WhatsApp always fires independently — doesn't depend on email being configured
+  sendSmsNotification(args).catch(() => {});
+
+  const transporter = getTransporter();
+  if (!transporter) return; // email not configured yet, but WhatsApp already fired above
+
   const adminUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.neuvesca.com"}/admin/orders/${args.orderId}`;
 
   const itemRows = args.items
@@ -209,7 +213,5 @@ export async function sendNewOrderNotification(args: OrderEmailArgs) {
           }),
         ]
       : []),
-    // SMS notification
-    sendSmsNotification(args).catch(() => {}),
   ]);
 }
