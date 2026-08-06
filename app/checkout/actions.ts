@@ -350,7 +350,10 @@ async function insertOrderWithItems({
     details.shipping_country,
   ].filter(Boolean);
 
-  sendNewOrderNotification({
+  // Awaited on purpose: on Vercel the lambda is frozen once the response is sent,
+  // so a fire-and-forget promise here gets killed before the mail/WhatsApp is delivered.
+  // sendNewOrderNotification never rejects (it swallows its own errors internally).
+  await sendNewOrderNotification({
     orderId: order.id,
     customerName: details.customer_name,
     customerEmail: details.customer_email,
@@ -366,7 +369,7 @@ async function insertOrderWithItems({
     })),
     shippingAddress: shippingParts.join(", "),
     paymentMethod: paymentMethod,
-  }).catch(() => {});
+  });
 
   return order.id;
 }

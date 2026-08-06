@@ -1,11 +1,15 @@
 import nodemailer from "nodemailer";
-import twilio from "twilio";
 import { formatPrice } from "@/lib/format";
 
 function getTransporter() {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
-  if (!user || !pass) return null;
+  const user = process.env.EMAIL_USER?.trim();
+  const pass = process.env.EMAIL_PASS?.trim();
+  if (!user || !pass) {
+    console.error(
+      `[Email] Skipped — missing env vars. EMAIL_USER=${Boolean(user)} EMAIL_PASS=${Boolean(pass)}`,
+    );
+    return null;
+  }
   return nodemailer.createTransport({
     service: "gmail",
     auth: { user, pass },
@@ -150,11 +154,19 @@ function buildReceiptHtml(args: OrderEmailArgs): string {
 </html>`;
 }
 
+const OWNER_WHATSAPP = "whatsapp:+201016112726";
+
 async function sendSmsNotification(args: OrderEmailArgs) {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_FROM;
-  if (!accountSid || !authToken || !from) return;
+  const accountSid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
+  const from = process.env.TWILIO_FROM?.trim();
+
+  if (!accountSid || !authToken || !from) {
+    console.error(
+      `[Twilio] Skipped — missing env vars. sid=${Boolean(accountSid)} token=${Boolean(authToken)} from=${Boolean(from)}`,
+    );
+    return;
+  }
 
   const shortId = args.orderId.slice(0, 8).toUpperCase();
   const itemLines = args.items
@@ -169,12 +181,31 @@ async function sendSmsNotification(args: OrderEmailArgs) {
     `Items:\n${itemLines}\n\n` +
     `Ship to: ${args.shippingAddress}`;
 
-  const client = twilio(accountSid, authToken);
-  await client.messages.create({
-    body: message,
-    from,
-    to: "whatsapp:+201016112726",
+  // Direct REST call — avoids bundling the heavy twilio SDK into the serverless
+  // function and lets us surface Twilio's exact error message in the logs.
+  const body = new URLSearchParams({
+    To: OWNER_WHATSAPP,
+    From: from.startsWith("whatsapp:") ? from : `whatsapp:${from}`,
+    Body: message,
   });
+
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+    },
+  );
+
+  const payload = await res.text();
+  if (!res.ok) {
+    throw new Error(`Twilio ${res.status}: ${payload}`);
+  }
+  console.log(`[Twilio] WhatsApp sent for order ${shortId}`);
 }
 
 async function sendEmailNotifications(args: OrderEmailArgs) {
@@ -208,6 +239,7 @@ async function sendEmailNotifications(args: OrderEmailArgs) {
         ]
       : []),
   ]);
+  console.log(`[Email] Sent for order ${shortId}`);
 }
 
 export async function sendNewOrderNotification(args: OrderEmailArgs) {
