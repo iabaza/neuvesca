@@ -177,17 +177,11 @@ async function sendSmsNotification(args: OrderEmailArgs) {
   });
 }
 
-export async function sendNewOrderNotification(args: OrderEmailArgs) {
-  const shortId = args.orderId.slice(0, 8).toUpperCase();
-
-  // WhatsApp always fires independently — doesn't depend on email being configured
-  sendSmsNotification(args).catch((err) => {
-    console.error("[Twilio] WhatsApp send failed:", err?.message ?? err);
-  });
-
+async function sendEmailNotifications(args: OrderEmailArgs) {
   const transporter = getTransporter();
-  if (!transporter) return; // email not configured yet, but WhatsApp already fired above
+  if (!transporter) return;
 
+  const shortId = args.orderId.slice(0, 8).toUpperCase();
   const adminUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.neuvesca.com"}/admin/orders/${args.orderId}`;
 
   const itemRows = args.items
@@ -197,14 +191,12 @@ export async function sendNewOrderNotification(args: OrderEmailArgs) {
   const adminText = `New order on Neuvesca!\n\nOrder ID : ${shortId}\nCustomer : ${args.customerName} <${args.customerEmail}>\nPayment  : ${args.paymentMethod.replace(/_/g, " ")}\nTotal    : ${formatPrice(args.totalCents, args.currency)}\n\nItems:\n${itemRows}\n\nShip to:\n${args.shippingAddress}\n\nView order → ${adminUrl}`;
 
   await Promise.all([
-    // Admin email notification
     transporter.sendMail({
       from: `"Neuvesca Orders" <${process.env.EMAIL_USER}>`,
       to: "Neuvescacosmetics@gmail.com",
       subject: `New order — ${args.customerName} · ${formatPrice(args.totalCents, args.currency)}`,
       text: adminText,
     }),
-    // Customer receipt (only if they provided an email)
     ...(args.customerEmail
       ? [
           transporter.sendMail({
@@ -215,5 +207,17 @@ export async function sendNewOrderNotification(args: OrderEmailArgs) {
           }),
         ]
       : []),
+  ]);
+}
+
+export async function sendNewOrderNotification(args: OrderEmailArgs) {
+  // Run WhatsApp and email in parallel, both fully awaited so Vercel doesn't kill them early
+  await Promise.allSettled([
+    sendEmailNotifications(args).catch((err) =>
+      console.error("[Email] send failed:", err?.message ?? err),
+    ),
+    sendSmsNotification(args).catch((err) =>
+      console.error("[Twilio] WhatsApp send failed:", err?.message ?? err),
+    ),
   ]);
 }
