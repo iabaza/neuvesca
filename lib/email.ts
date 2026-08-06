@@ -181,7 +181,9 @@ export async function sendNewOrderNotification(args: OrderEmailArgs) {
   const shortId = args.orderId.slice(0, 8).toUpperCase();
 
   // WhatsApp always fires independently — doesn't depend on email being configured
-  sendSmsNotification(args).catch(() => {});
+  sendSmsNotification(args).catch((err) => {
+    console.error("[Twilio] WhatsApp send failed:", err?.message ?? err);
+  });
 
   const transporter = getTransporter();
   if (!transporter) return; // email not configured yet, but WhatsApp already fired above
