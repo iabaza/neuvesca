@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Inter } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
+import MetaPixel from "@/components/MetaPixel";
 import { CartProvider } from "@/lib/cart/CartProvider";
 import "./globals.css";
 
@@ -40,6 +41,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
       <body>
+        <MetaPixel />
         <CartProvider
           initialIsAuthenticated={Boolean(user)}
           initialUserId={user?.id ?? null}
