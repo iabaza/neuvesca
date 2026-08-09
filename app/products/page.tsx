@@ -6,7 +6,14 @@ import {
   type ProductCategory,
   type ProductListItem,
 } from "@/lib/queries/products";
-import { formatPrice, scentImageUrl, scentSwatchColor } from "@/lib/format";
+import {
+  clampDiscountPercent,
+  effectivePriceCents,
+  formatPrice,
+  hasDiscount,
+  scentImageUrl,
+  scentSwatchColor,
+} from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Shop | Neuvesca",
@@ -41,9 +48,22 @@ function ProductCard({ product }: { product: ProductListItem }) {
   const visibleScents = product.primary_scents.slice(0, 5);
   const overflow = scentCount - visibleScents.length;
   const href = `/products/${product.slug}`;
+  const onSale = hasDiscount(product.discount_percent);
+  const salePriceCents = effectivePriceCents(
+    product.price_cents,
+    product.discount_percent,
+  );
   return (
     <div className="productCard">
       <Link aria-label={product.name} className={`productVisual ${product.tone ?? ""}`} href={href}>
+        {onSale && (
+          <span className="saleBadge">
+            <span className="saleBadgeAmount">
+              −{clampDiscountPercent(product.discount_percent)}%
+            </span>
+Off
+          </span>
+        )}
         {product.image_url ? (
           <Image
             alt={product.name}
@@ -62,9 +82,20 @@ function ProductCard({ product }: { product: ProductListItem }) {
         <Link className="productCardLink" href={href}>
           <div className="productCardHeader">
             <h3>{product.name}</h3>
-            <span className="productCardPrice">
-              {formatPrice(product.price_cents, product.currency)}
-            </span>
+            {onSale ? (
+              <span className="priceStack">
+                <span className="priceWas">
+                  {formatPrice(product.price_cents, product.currency)}
+                </span>
+                <span className="priceNow">
+                  {formatPrice(salePriceCents, product.currency)}
+                </span>
+              </span>
+            ) : (
+              <span className="productCardPrice">
+                {formatPrice(product.price_cents, product.currency)}
+              </span>
+            )}
           </div>
           <p>{product.description}</p>
         </Link>

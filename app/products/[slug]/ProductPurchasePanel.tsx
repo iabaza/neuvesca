@@ -10,7 +10,12 @@ import type { ScentRow } from "@/lib/queries/products";
 type Props = {
   productId: string;
   primaryScents: ScentRow[];
+  /** Price the customer pays — already discounted. */
   priceLabel: string;
+  /** Original price, only set when the product is on sale. */
+  listPriceLabel?: string | null;
+  savingsLabel?: string | null;
+  discountPercent?: number;
   burnTimeHours: number | null;
   sizeGrams: number | null;
   scentId: string | null;
@@ -21,6 +26,9 @@ export default function ProductPurchasePanel({
   productId,
   primaryScents,
   priceLabel,
+  listPriceLabel,
+  savingsLabel,
+  discountPercent = 0,
   burnTimeHours,
   sizeGrams,
   scentId,
@@ -177,7 +185,21 @@ export default function ProductPurchasePanel({
       </div>
 
       <div className="productPriceRow">
-        <span className="productPrice">{priceLabel}</span>
+        {listPriceLabel ? (
+          <>
+            <span className="productPriceSale">
+              <span className="priceNow">{priceLabel}</span>
+              <span className="priceWas">{listPriceLabel}</span>
+            </span>
+            {savingsLabel && (
+              <span className="productSaveNote">
+                Save {savingsLabel} · {discountPercent}% off
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="productPrice">{priceLabel}</span>
+        )}
         <span className="productPriceNote">
           Ships in reusable glass · Free shipping over E£1,500
         </span>

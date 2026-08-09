@@ -7,6 +7,32 @@ export function formatPrice(cents: number, currency = "EGP") {
   }).format(cents / 100);
 }
 
+/**
+ * The price a customer actually pays for a product.
+ *
+ * Every surface that shows or charges a price must go through this — the cart,
+ * checkout totals and order lines included — so a product can never be
+ * advertised at a discount but billed at full price.
+ */
+export function effectivePriceCents(
+  priceCents: number,
+  discountPercent?: number | null,
+): number {
+  const pct = clampDiscountPercent(discountPercent);
+  if (pct === 0) return priceCents;
+  return Math.round((priceCents * (100 - pct)) / 100);
+}
+
+export function clampDiscountPercent(discountPercent?: number | null): number {
+  const pct = Math.round(Number(discountPercent ?? 0));
+  if (!Number.isFinite(pct) || pct <= 0) return 0;
+  return Math.min(100, pct);
+}
+
+export function hasDiscount(discountPercent?: number | null): boolean {
+  return clampDiscountPercent(discountPercent) > 0;
+}
+
 export function scentSwatchColor(slug: string) {
   // Deterministic HSL from slug — lets us render a color swatch without a DB column.
   let hash = 0;

@@ -9,7 +9,8 @@ import {
   paymobConfigured,
 } from "@/lib/payments/paymob";
 import { calculateShippingCents } from "@/lib/checkout/shipping";
-import { sendNewOrderNotification } from "@/lib/email";
+import { notifyOrderPlaced } from "@/lib/orders/notify";
+import { effectivePriceCents } from "@/lib/format";
 
 type CheckoutDetails = {
   customer_name: string;
@@ -132,7 +133,9 @@ async function loadCartFromSnapshot(
 
   const { data: products } = await supabase
     .from("products")
-    .select("id, slug, name, family, image_url, tone, price_cents, currency")
+    .select(
+      "id, slug, name, family, image_url, tone, price_cents, discount_percent, currency",
+    )
     .in("id", productIds);
   const { data: scents } = scentIds.length
     ? await supabase.from("scents").select("id, slug, name").in("id", scentIds)
@@ -149,6 +152,7 @@ async function loadCartFromSnapshot(
         image_url: string | null;
         tone: string | null;
         price_cents: number;
+        discount_percent: number | null;
         currency: string;
       },
     ]),
@@ -176,7 +180,9 @@ async function loadCartFromSnapshot(
         productFamily: p.family ?? null,
         productImageUrl: p.image_url,
         productTone: p.tone,
-        unitPriceCents: p.price_cents,
+        unitPriceCents: effectivePriceCents(p.price_cents, p.discount_percent),
+        listPriceCents: p.price_cents,
+        discountPercent: p.discount_percent ?? 0,
         currency: p.currency,
         scentName: s?.name ?? null,
         scentSlug: s?.slug ?? null,
@@ -341,35 +347,18 @@ async function insertOrderWithItems({
     throw new Error(itemsError.message || "We couldn't save your order items.");
   }
 
-  const shippingParts = [
-    details.shipping_address_line1,
-    details.shipping_address_line2,
-    details.shipping_city,
-    details.shipping_region,
-    details.shipping_postal_code,
-    details.shipping_country,
-  ].filter(Boolean);
-
-  // Awaited on purpose: on Vercel the lambda is frozen once the response is sent,
-  // so a fire-and-forget promise here gets killed before the mail/WhatsApp is delivered.
-  // sendNewOrderNotification never rejects (it swallows its own errors internally).
-  await sendNewOrderNotification({
-    orderId: order.id,
-    customerName: details.customer_name,
-    customerEmail: details.customer_email,
-    totalCents: totals.totalCents,
-    subtotalCents: totals.subtotalCents,
-    discountCents: totals.discountCents,
-    shippingCents: totals.shippingCents,
-    currency: totals.currency,
-    items: totals.cart.map((l) => ({
-      productName: l.productName,
-      quantity: l.quantity,
-      unitPriceCents: l.unitPriceCents,
-    })),
-    shippingAddress: shippingParts.join(", "),
-    paymentMethod: paymentMethod,
-  });
+  // Cash on delivery is confirmed the moment it is placed, so notify now. Card
+  // orders are only a payment *intent* at this point — the customer has not yet
+  // been sent to Paymob. Their receipt is sent from the payment webhook once
+  // the payment actually succeeds, so we never confirm an order that was
+  // abandoned or declined.
+  //
+  // Awaited on purpose: on Vercel the lambda is frozen once the response is
+  // sent, so a fire-and-forget promise here is killed before delivery.
+  // notifyOrderPlaced never throws.
+  if (paymentMethod === "cash_on_delivery") {
+    await notifyOrderPlaced(order.id);
+  }
 
   return order.id;
 }

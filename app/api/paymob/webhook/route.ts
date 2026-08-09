@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyOrderPlaced } from "@/lib/orders/notify";
 import {
   flattenWebhookTransaction,
   verifyPaymobHmac,
@@ -44,22 +45,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
-  const next = obj.is_refunded
-    ? "refunded"
-    : obj.is_voided
-      ? "cancelled"
-      : obj.success
-        ? "paid"
-        : "pending";
+  // Must be one of orders_status_valid:
+  // pending | confirmed | processing | shipped | delivered | cancelled.
+  // A successful payment maps to "confirmed" — the state the admin dashboard
+  // treats as "paid, ready to fulfil". Refunds and voids both map to
+  // "cancelled" since the schema has no dedicated refunded state.
+  const paymentSucceeded = Boolean(obj.success) && !obj.is_refunded && !obj.is_voided;
+  const next = obj.is_refunded || obj.is_voided
+    ? "cancelled"
+    : obj.success
+      ? "confirmed"
+      : "pending";
 
-  const supabase = createClient();
-  await supabase
+  const supabase = createAdminClient();
+  const { data: updated, error } = await supabase
     .from("orders")
     .update({
       status: next,
       paymob_order_id: obj.order?.id ?? null,
     })
-    .eq("paymob_merchant_order_id", merchantOrderId);
+    .eq("paymob_merchant_order_id", merchantOrderId)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    console.error("[paymob/webhook] order update failed:", error.message);
+    return NextResponse.json({ ok: false }, { status: 500 });
+  }
+
+  // Only now — once the payment is actually confirmed — does the customer get
+  // their receipt. notifyOrderPlaced is idempotent, so Paymob re-delivering
+  // this webhook cannot send a second copy.
+  if (updated?.id && paymentSucceeded) {
+    await notifyOrderPlaced(updated.id);
+  }
 
   return NextResponse.json({ ok: true });
 }

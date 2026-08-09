@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { effectivePriceCents } from "@/lib/format";
 
 export type ServerCartLine = {
   id: string;
@@ -10,7 +11,11 @@ export type ServerCartLine = {
   productFamily: string | null;
   productImageUrl: string | null;
   productTone: string | null;
+  /** What the customer is charged — already has any product discount applied. */
   unitPriceCents: number;
+  /** Pre-discount price, for showing a struck-through original. */
+  listPriceCents: number;
+  discountPercent: number;
   currency: string;
   scentName: string | null;
   scentSlug: string | null;
@@ -28,6 +33,7 @@ type RawRow = {
     image_url: string | null;
     tone: string | null;
     price_cents: number;
+    discount_percent: number | null;
     currency: string;
   } | null;
   scents: { slug: string; name: string } | null;
@@ -39,7 +45,7 @@ export async function getServerCart(userId: string): Promise<ServerCartLine[]> {
     .from("cart_items")
     .select(
       `id, product_id, scent_id, quantity,
-       products ( slug, name, family, image_url, tone, price_cents, currency ),
+       products ( slug, name, family, image_url, tone, price_cents, discount_percent, currency ),
        scents ( slug, name )`,
     )
     .eq("user_id", userId)
@@ -59,7 +65,12 @@ export async function getServerCart(userId: string): Promise<ServerCartLine[]> {
       productFamily: r.products!.family,
       productImageUrl: r.products!.image_url,
       productTone: r.products!.tone,
-      unitPriceCents: r.products!.price_cents,
+      unitPriceCents: effectivePriceCents(
+        r.products!.price_cents,
+        r.products!.discount_percent,
+      ),
+      listPriceCents: r.products!.price_cents,
+      discountPercent: r.products!.discount_percent ?? 0,
       currency: r.products!.currency,
       scentName: r.scents?.name ?? null,
       scentSlug: r.scents?.slug ?? null,

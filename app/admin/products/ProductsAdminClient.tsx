@@ -3,7 +3,11 @@
 import { useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadProductImage } from "@/lib/storage";
-import { formatPrice } from "@/lib/format";
+import {
+  clampDiscountPercent,
+  effectivePriceCents,
+  formatPrice,
+} from "@/lib/format";
 
 export type AdminScentOption = {
   id: string;
@@ -32,6 +36,7 @@ export type AdminProduct = {
   tone: string | null;
   size_grams: number | null;
   price_cents: number;
+  discount_percent: number;
   currency: string;
   image_url: string | null;
   gallery_image_urls: string[] | null;
@@ -54,6 +59,7 @@ type ProductForm = {
   burn_time_hours: string;
   size_grams: string;
   price: string; // displayed in EGP, not cents
+  discount_percent: string; // 0-100, empty/0 means no sale
   stock_units: string;
   image_url: string;
   gallery_image_urls: string[];
@@ -74,6 +80,7 @@ function blankForm(): ProductForm {
     burn_time_hours: "",
     size_grams: "",
     price: "48",
+    discount_percent: "0",
     stock_units: "100",
     image_url: "",
     gallery_image_urls: [],
@@ -98,6 +105,7 @@ function productToForm(product: AdminProduct): ProductForm {
       product.burn_time_hours == null ? "" : String(product.burn_time_hours),
     size_grams: product.size_grams == null ? "" : String(product.size_grams),
     price: String(Math.round(product.price_cents / 100)),
+    discount_percent: String(product.discount_percent ?? 0),
     stock_units: String(product.stock_units ?? 0),
     image_url: product.image_url ?? "",
     gallery_image_urls: product.gallery_image_urls ?? [],
@@ -135,11 +143,22 @@ export default function ProductsAdminClient({
 
   const selectedProduct = products.find((product) => product.id === selectedId);
 
+  // Shows the actual sale price while typing, so a wrong percentage is obvious
+  // before it reaches the storefront.
+  const discountPreview = useMemo(() => {
+    const pct = clampDiscountPercent(Number.parseInt(form.discount_percent, 10));
+    const priceEgp = Number.parseFloat(form.price);
+    if (pct <= 0 || !Number.isFinite(priceEgp) || priceEgp <= 0) return "";
+    const listCents = Math.round(priceEgp * 100);
+    const saleCents = effectivePriceCents(listCents, pct);
+    return `On sale: ${formatPrice(saleCents, DEFAULT_CURRENCY)} (was ${formatPrice(listCents, DEFAULT_CURRENCY)}) — saves ${formatPrice(listCents - saleCents, DEFAULT_CURRENCY)}`;
+  }, [form.discount_percent, form.price]);
+
   async function refreshProducts(nextSelectedId?: string) {
     const { data, error } = await supabase
       .from("products")
       .select(
-        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, stock_units, category, show_description_tab, show_ingredients_tab,
+        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, stock_units, category, show_description_tab, show_ingredients_tab,
          product_scents ( scent_id, note_role, sort_order )`,
       )
       .order("slug", { ascending: true });
@@ -204,6 +223,13 @@ export default function ProductsAdminClient({
       const priceCents = Number.isFinite(priceEgp) && priceEgp >= 0
         ? Math.round(priceEgp * 100)
         : 0;
+      // The DB constrains this to 0-100; clamp here so a typo shows as a
+      // sensible value instead of failing the save.
+      const discountParsed = Number.parseInt(form.discount_percent, 10);
+      const discountPercent = Number.isFinite(discountParsed)
+        ? Math.min(100, Math.max(0, discountParsed))
+        : 0;
+
       const stockParsed = Number.parseInt(form.stock_units, 10);
       const stockUnits = Number.isFinite(stockParsed) && stockParsed >= 0
         ? stockParsed
@@ -226,6 +252,7 @@ export default function ProductsAdminClient({
         tone: null,
         size_grams: sizeGrams,
         price_cents: priceCents,
+        discount_percent: discountPercent,
         currency: DEFAULT_CURRENCY,
         image_url: imageUrl,
         gallery_image_urls: form.gallery_image_urls,
@@ -454,6 +481,26 @@ export default function ProductsAdminClient({
                 type="number"
                 value={form.price}
               />
+            </label>
+            <label className="adminFormRow">
+              <span className="adminFormLabel">
+                Discount (%){" "}
+                <span style={{ color: "var(--admin-muted)", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
+                  — 0 = no sale
+                </span>
+              </span>
+              <input
+                className="adminInput"
+                max="100"
+                min="0"
+                onChange={(e) => updateField("discount_percent", e.target.value)}
+                placeholder="0"
+                type="number"
+                value={form.discount_percent}
+              />
+              {discountPreview ? (
+                <span className="adminFormHint">{discountPreview}</span>
+              ) : null}
             </label>
             <label className="adminFormRow">
               <span className="adminFormLabel">Units in stock</span>

@@ -60,6 +60,8 @@ export default function CheckoutView({ userEmail, error }: Props) {
             scentSlug: line.scentSlug,
             scentName: line.scentName,
             unitPriceCents: line.unitPriceCents,
+            listPriceCents: line.listPriceCents,
+            discountPercent: line.discountPercent,
             currency: line.currency,
             quantity: line.quantity,
           }))}

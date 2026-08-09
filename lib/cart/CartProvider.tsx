@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { effectivePriceCents } from "@/lib/format";
 import {
   clearGuestCart,
   getGuestCart,
@@ -47,6 +48,7 @@ type ProductLookup = {
   image_url: string | null;
   tone: string | null;
   price_cents: number;
+  discount_percent: number | null;
   currency: string;
 };
 
@@ -65,7 +67,9 @@ async function hydrateGuest(
   const [{ data: products }, { data: scents }] = await Promise.all([
     supabase
       .from("products")
-      .select("id, slug, name, image_url, tone, price_cents, currency")
+      .select(
+        "id, slug, name, image_url, tone, price_cents, discount_percent, currency",
+      )
       .in("id", productIds),
     scentIds.length > 0
       ? supabase.from("scents").select("id, slug, name").in("id", scentIds)
@@ -94,7 +98,9 @@ async function hydrateGuest(
         productName: p.name,
         productImageUrl: p.image_url,
         productTone: p.tone,
-        unitPriceCents: p.price_cents,
+        unitPriceCents: effectivePriceCents(p.price_cents, p.discount_percent),
+        listPriceCents: p.price_cents,
+        discountPercent: p.discount_percent ?? 0,
         currency: p.currency,
         scentName: s?.name ?? null,
         scentSlug: s?.slug ?? null,
@@ -111,7 +117,7 @@ async function loadAuthedCart(
     .from("cart_items")
     .select(
       `id, product_id, scent_id, quantity,
-       products ( slug, name, image_url, tone, price_cents, currency ),
+       products ( slug, name, image_url, tone, price_cents, discount_percent, currency ),
        scents ( slug, name )`,
     )
     .eq("user_id", userId)
@@ -130,6 +136,7 @@ async function loadAuthedCart(
       image_url: string | null;
       tone: string | null;
       price_cents: number;
+      discount_percent: number | null;
       currency: string;
     } | null;
     scents: { slug: string; name: string } | null;
@@ -146,7 +153,12 @@ async function loadAuthedCart(
       productName: r.products!.name,
       productImageUrl: r.products!.image_url,
       productTone: r.products!.tone,
-      unitPriceCents: r.products!.price_cents,
+      unitPriceCents: effectivePriceCents(
+        r.products!.price_cents,
+        r.products!.discount_percent,
+      ),
+      listPriceCents: r.products!.price_cents,
+      discountPercent: r.products!.discount_percent ?? 0,
       currency: r.products!.currency,
       scentName: r.scents?.name ?? null,
       scentSlug: r.scents?.slug ?? null,

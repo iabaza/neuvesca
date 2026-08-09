@@ -7,7 +7,11 @@ export type CartItem = {
   productName: string;
   productImageUrl: string | null;
   productTone: string | null;
+  /** What the customer is charged — already has any product discount applied. */
   unitPriceCents: number;
+  /** Pre-discount price, for showing a struck-through original. */
+  listPriceCents: number;
+  discountPercent: number;
   currency: string;
   scentName: string | null;
   scentSlug: string | null;

@@ -3,7 +3,12 @@
 import Image from "next/image";
 import { useState, useMemo } from "react";
 import { INGREDIENT_ITEMS } from "@/lib/ingredients-data";
-import { formatPrice } from "@/lib/format";
+import {
+  clampDiscountPercent,
+  effectivePriceCents,
+  formatPrice,
+  hasDiscount,
+} from "@/lib/format";
 import type { ProductDetail } from "@/lib/queries/products";
 import ProductGallery from "./ProductGallery";
 import ProductPurchasePanel from "./ProductPurchasePanel";
@@ -37,7 +42,13 @@ export default function ProductView({ product }: Props) {
 
   const defaultTab: Tab = showDescription ? "description" : "ingredients";
   const [tab, setTab] = useState<Tab>(defaultTab);
-  const priceLabel = formatPrice(product.price_cents, product.currency);
+
+  const onSale = hasDiscount(product.discount_percent);
+  const salePriceCents = effectivePriceCents(
+    product.price_cents,
+    product.discount_percent,
+  );
+  const priceLabel = formatPrice(salePriceCents, product.currency);
   const { ingredients } = product;
 
   return (
@@ -55,10 +66,19 @@ export default function ProductView({ product }: Props) {
 
         <ProductPurchasePanel
           burnTimeHours={product.burn_time_hours}
+          discountPercent={onSale ? clampDiscountPercent(product.discount_percent) : 0}
+          listPriceLabel={
+            onSale ? formatPrice(product.price_cents, product.currency) : null
+          }
           onScentChange={setScentId}
           priceLabel={priceLabel}
           primaryScents={product.primary_scents}
           productId={product.id}
+          savingsLabel={
+            onSale
+              ? formatPrice(product.price_cents - salePriceCents, product.currency)
+              : null
+          }
           scentId={scentId}
           sizeGrams={product.size_grams}
         />

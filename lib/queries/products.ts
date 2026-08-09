@@ -12,6 +12,8 @@ export type ProductRow = {
   tone: string | null;
   size_grams: number | null;
   price_cents: number;
+  /** 0–100. Percent off `price_cents`; 0 means the product is not on sale. */
+  discount_percent: number;
   currency: string;
   image_url: string | null;
   gallery_image_urls: string[];
@@ -80,7 +82,7 @@ export async function listActiveProducts(filters?: {
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab,
+      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab,
        product_scents ( note_role, sort_order, scents ( id, slug, name, description, family, image_url ) )`,
     )
     .eq("is_active", true)
@@ -128,7 +130,7 @@ export async function getProductBySlug(
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab,
+      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab,
        product_scents ( note_role, sort_order, scents ( id, slug, name, description, family, image_url ) ),
        product_ingredients ( sort_order, ingredients ( id, slug, name, description, safety_notes ) )`,
     )
