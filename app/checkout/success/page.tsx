@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatPrice } from "@/lib/format";
 import RefreshCartOnMount from "./RefreshCartOnMount";
+import TrackPurchase from "./TrackPurchase";
 
 export const metadata: Metadata = {
   title: "Order placed | Neuvesca",
@@ -41,9 +42,22 @@ export default async function CheckoutSuccessPage({
 
   if (!order) notFound();
 
+  // Line items drive the Meta Purchase event's content_ids / num_items.
+  const { data: orderItems } = await reader
+    .from("order_items")
+    .select("product_id, quantity")
+    .eq("order_id", order.id);
+
   return (
     <section className="pageIntro pageIntroCentered">
       <RefreshCartOnMount />
+      <TrackPurchase
+        contentIds={(orderItems ?? []).map((i) => i.product_id)}
+        currency={order.currency}
+        numItems={(orderItems ?? []).reduce((n, i) => n + (i.quantity ?? 0), 0)}
+        orderId={order.id}
+        valueCents={order.total_cents}
+      />
       <p className="eyebrow">Order received</p>
       <h1>Thank you, {order.customer_name?.split(" ")[0] ?? "friend"}.</h1>
       <p className="lede">

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { trackViewContent } from "@/lib/analytics/meta";
 import { INGREDIENT_ITEMS } from "@/lib/ingredients-data";
 import {
   clampDiscountPercent,
@@ -49,6 +50,26 @@ export default function ProductView({ product }: Props) {
     product.discount_percent,
   );
   const priceLabel = formatPrice(salePriceCents, product.currency);
+
+  // Meta "ViewContent" — the signal Meta uses to build product-interest
+  // audiences. Value is the discounted price, i.e. what the visitor would
+  // actually pay.
+  //
+  // Guarded by product id rather than relying on the effect running once:
+  // React Strict Mode double-invokes effects, and a duplicated ViewContent
+  // would overstate product interest in the ad account.
+  const viewedProductId = useRef<string | null>(null);
+  useEffect(() => {
+    if (viewedProductId.current === product.id) return;
+    viewedProductId.current = product.id;
+    trackViewContent({
+      id: product.id,
+      name: product.name,
+      priceCents: salePriceCents,
+      currency: product.currency,
+      category: product.category,
+    });
+  }, [product.id, product.name, product.currency, product.category, salePriceCents]);
   const { ingredients } = product;
 
   return (
@@ -72,8 +93,10 @@ export default function ProductView({ product }: Props) {
           }
           onScentChange={setScentId}
           priceLabel={priceLabel}
+          currency={product.currency}
           primaryScents={product.primary_scents}
           productId={product.id}
+          productName={product.name}
           savingsLabel={
             onSale
               ? formatPrice(product.price_cents - salePriceCents, product.currency)
@@ -81,6 +104,7 @@ export default function ProductView({ product }: Props) {
           }
           scentId={scentId}
           sizeGrams={product.size_grams}
+          unitPriceCents={salePriceCents}
         />
 
         {showTabs && (

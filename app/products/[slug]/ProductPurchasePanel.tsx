@@ -4,11 +4,16 @@ import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/cart/CartProvider";
+import { trackAddToCart } from "@/lib/analytics/meta";
 import { scentImageUrl, scentSwatchColor } from "@/lib/format";
 import type { ScentRow } from "@/lib/queries/products";
 
 type Props = {
   productId: string;
+  productName: string;
+  /** Cents the customer actually pays, after any discount. */
+  unitPriceCents: number;
+  currency: string;
   primaryScents: ScentRow[];
   /** Price the customer pays — already discounted. */
   priceLabel: string;
@@ -24,6 +29,9 @@ type Props = {
 
 export default function ProductPurchasePanel({
   productId,
+  productName,
+  unitPriceCents,
+  currency,
   primaryScents,
   priceLabel,
   listPriceLabel,
@@ -60,6 +68,10 @@ export default function ProductPurchasePanel({
     setAdded(false);
     try {
       await addToCart(productId, hasScents ? scentId : null, quantity);
+      trackAddToCart(
+        { id: productId, name: productName, priceCents: unitPriceCents, currency },
+        quantity,
+      );
       setAdded(true);
       startTransition(() => router.refresh());
     } finally {
@@ -76,6 +88,10 @@ export default function ProductPurchasePanel({
     setAdding(true);
     try {
       await addToCart(productId, hasScents ? scentId : null, quantity);
+      trackAddToCart(
+        { id: productId, name: productName, priceCents: unitPriceCents, currency },
+        quantity,
+      );
       router.push("/checkout");
     } finally {
       setAdding(false);

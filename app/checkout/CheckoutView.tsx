@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { formatPrice } from "@/lib/format";
 import { useCart } from "@/lib/cart/CartProvider";
+import { trackInitiateCheckout } from "@/lib/analytics/meta";
 import CheckoutForm from "./CheckoutForm";
 
 type Props = {
@@ -20,6 +21,21 @@ export default function CheckoutView({ userEmail, error }: Props) {
       router.replace("/cart");
     }
   }, [isLoading, items.length, router]);
+
+  // Meta "InitiateCheckout". Fires once the cart has actually hydrated, and
+  // only once per visit to this page — the effect re-runs as cart state
+  // settles, and a repeated event would overstate checkout starts.
+  const checkoutTracked = useRef(false);
+  useEffect(() => {
+    if (isLoading || items.length === 0 || checkoutTracked.current) return;
+    checkoutTracked.current = true;
+    trackInitiateCheckout({
+      contentIds: items.map((i) => i.productId),
+      numItems: items.reduce((n, i) => n + i.quantity, 0),
+      valueCents: subtotalCents,
+      currency: items[0].currency,
+    });
+  }, [isLoading, items, subtotalCents]);
 
   if (isLoading) {
     return (
