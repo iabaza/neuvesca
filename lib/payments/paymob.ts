@@ -1,17 +1,22 @@
 import crypto from "crypto";
 
 /**
- * Helpers for Paymob (Accept) hosted iframe checkout.
+ * Paymob Unified Checkout (the "Flash" / Intention API).
+ *
+ * Replaces the old three-call dance (auth token -> ecommerce order -> payment
+ * key -> iframe) with a single POST that returns a client secret, which is
+ * then handed to Paymob's hosted checkout page.
  *
  * Required env vars:
- *   PAYMOB_API_KEY           – from Paymob dashboard → API Keys
- *   PAYMOB_INTEGRATION_ID    – card-payment integration id (numeric)
- *   PAYMOB_IFRAME_ID         – the iframe id (numeric) used to render checkout
- *   PAYMOB_HMAC_SECRET       – HMAC secret for verifying webhook + callback
- *   NEXT_PUBLIC_SITE_URL     – your site URL (used for redirect URLs)
+ *   PAYMOB_SECRET_KEY      – Settings -> API Keys  (egy_sk_...)
+ *   PAYMOB_PUBLIC_KEY      – Settings -> API Keys  (egy_pk_...)
+ *   PAYMOB_INTEGRATION_ID  – Developers -> Payment Integrations (numeric)
+ *   PAYMOB_HMAC_SECRET     – for verifying webhook + callback signatures
+ *   NEXT_PUBLIC_SITE_URL   – used to build the return/notification URLs
  */
 
-const PAYMOB_BASE = "https://accept.paymob.com/api";
+const INTENTION_URL = "https://accept.paymob.com/v1/intention/";
+const UNIFIED_CHECKOUT_URL = "https://accept.paymob.com/unifiedcheckout/";
 
 export type PaymobBilling = {
   first_name: string;
@@ -30,132 +35,143 @@ export type PaymobBilling = {
 
 export type PaymobItem = {
   name: string;
+  /** UNIT price in cents. Paymob multiplies this by `quantity`. */
   amount_cents: number;
-  description?: string;
   quantity: number;
+  description?: string;
 };
 
 function getEnv() {
   return {
-    apiKey: process.env.PAYMOB_API_KEY ?? "",
+    secretKey: process.env.PAYMOB_SECRET_KEY ?? "",
+    publicKey: process.env.PAYMOB_PUBLIC_KEY ?? "",
     integrationId: process.env.PAYMOB_INTEGRATION_ID ?? "",
-    iframeId: process.env.PAYMOB_IFRAME_ID ?? "",
     hmacSecret: process.env.PAYMOB_HMAC_SECRET ?? "",
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.neuvesca.com",
   };
 }
 
 export function paymobConfigured() {
-  const { apiKey, integrationId, iframeId, hmacSecret } = getEnv();
-  return Boolean(apiKey && integrationId && iframeId && hmacSecret);
-}
-
-async function authenticate() {
-  const { apiKey } = getEnv();
-  const res = await fetch(`${PAYMOB_BASE}/auth/tokens`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ api_key: apiKey }),
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("Paymob authentication failed.");
-  const data = (await res.json()) as { token?: string };
-  if (!data.token) throw new Error("Paymob returned no auth token.");
-  return data.token;
-}
-
-async function createOrder(
-  authToken: string,
-  amountCents: number,
-  merchantOrderId: string,
-  items: PaymobItem[],
-) {
-  const res = await fetch(`${PAYMOB_BASE}/ecommerce/orders`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      auth_token: authToken,
-      delivery_needed: false,
-      amount_cents: amountCents,
-      currency: "EGP",
-      merchant_order_id: merchantOrderId,
-      items,
-    }),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Paymob order failed: ${text}`);
-  }
-  const data = (await res.json()) as { id?: number };
-  if (!data.id) throw new Error("Paymob returned no order id.");
-  return data.id;
-}
-
-async function requestPaymentKey(
-  authToken: string,
-  orderId: number,
-  amountCents: number,
-  billing: PaymobBilling,
-) {
-  const { integrationId } = getEnv();
-  const res = await fetch(`${PAYMOB_BASE}/acceptance/payment_keys`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      auth_token: authToken,
-      amount_cents: amountCents,
-      expiration: 3600,
-      order_id: orderId,
-      billing_data: billing,
-      currency: "EGP",
-      integration_id: Number(integrationId),
-    }),
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Paymob payment key failed: ${text}`);
-  }
-  const data = (await res.json()) as { token?: string };
-  if (!data.token) throw new Error("Paymob returned no payment key.");
-  return data.token;
+  const { secretKey, publicKey, integrationId, hmacSecret } = getEnv();
+  return Boolean(secretKey && publicKey && integrationId && hmacSecret);
 }
 
 export type PaymobCheckout = {
-  iframeUrl: string;
+  checkoutUrl: string;
   paymobOrderId: number;
+  clientSecret: string;
 };
 
+type IntentionResponse = {
+  client_secret?: string;
+  intention_order_id?: number;
+  id?: string;
+  detail?: string;
+};
+
+/**
+ * Creates a payment intention and returns the hosted checkout URL.
+ *
+ * Paymob validates that `amount` equals the sum of `item.amount * quantity`
+ * and rejects the whole request with 406 `unmatched_item_prices` otherwise.
+ * Since our total also carries shipping and promo discounts, the caller passes
+ * those as explicit line items. If the arithmetic still does not line up we
+ * fall back to a single summary line rather than failing the customer's
+ * checkout over a presentational detail.
+ */
 export async function createPaymobCheckout(args: {
   amountCents: number;
   merchantOrderId: string;
   billing: PaymobBilling;
   items: PaymobItem[];
 }): Promise<PaymobCheckout> {
-  const { iframeId } = getEnv();
-  const authToken = await authenticate();
-  const paymobOrderId = await createOrder(
-    authToken,
-    args.amountCents,
-    args.merchantOrderId,
-    args.items,
+  const { secretKey, publicKey, integrationId, siteUrl } = getEnv();
+
+  const itemsTotal = args.items.reduce(
+    (sum, i) => sum + i.amount_cents * i.quantity,
+    0,
   );
-  const paymentKey = await requestPaymentKey(
-    authToken,
-    paymobOrderId,
-    args.amountCents,
-    args.billing,
-  );
-  const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${iframeId}?payment_token=${paymentKey}`;
-  return { iframeUrl, paymobOrderId };
+  const items =
+    itemsTotal === args.amountCents && args.items.length > 0
+      ? args.items
+      : [
+          {
+            name: `Neuvesca order ${args.merchantOrderId}`,
+            amount_cents: args.amountCents,
+            quantity: 1,
+          },
+        ];
+
+  if (itemsTotal !== args.amountCents && args.items.length > 0) {
+    console.warn(
+      `[paymob] item total ${itemsTotal} != order total ${args.amountCents}; sent a single summary line instead.`,
+    );
+  }
+
+  const res = await fetch(INTENTION_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Token ${secretKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      amount: args.amountCents,
+      currency: "EGP",
+      payment_methods: [Number(integrationId)],
+      items: items.map((i) => ({
+        name: i.name,
+        amount: i.amount_cents,
+        quantity: i.quantity,
+        ...(i.description ? { description: i.description } : {}),
+      })),
+      billing_data: {
+        first_name: args.billing.first_name,
+        last_name: args.billing.last_name,
+        email: args.billing.email,
+        phone_number: args.billing.phone_number,
+        street: args.billing.street,
+        apartment: args.billing.apartment || "NA",
+        building: args.billing.building || "NA",
+        floor: args.billing.floor || "NA",
+        city: args.billing.city,
+        state: args.billing.state || "NA",
+        postal_code: args.billing.postal_code || "NA",
+        country: args.billing.country,
+      },
+      // Echoed back on the webhook, and how we map a payment to our order.
+      special_reference: args.merchantOrderId,
+      redirection_url: `${siteUrl}/api/paymob/callback`,
+      notification_url: `${siteUrl}/api/paymob/webhook`,
+    }),
+    cache: "no-store",
+  });
+
+  const data = (await res.json().catch(() => ({}))) as IntentionResponse;
+
+  if (!res.ok) {
+    throw new Error(
+      `Paymob intention failed (${res.status}): ${data.detail ?? JSON.stringify(data)}`,
+    );
+  }
+  if (!data.client_secret) {
+    throw new Error("Paymob returned no client secret.");
+  }
+
+  const checkoutUrl = `${UNIFIED_CHECKOUT_URL}?publicKey=${encodeURIComponent(publicKey)}&clientSecret=${encodeURIComponent(data.client_secret)}`;
+
+  return {
+    checkoutUrl,
+    paymobOrderId: data.intention_order_id ?? 0,
+    clientSecret: data.client_secret,
+  };
 }
 
 /**
  * Verify Paymob's HMAC for callback (query string) or webhook (JSON body).
  *
  * Paymob concatenates these fields in this exact order then HMAC-SHA512
- * with the secret. Reference:
- *   https://developers.paymob.com/egypt/checkout-api/payment-integration/credit-card-integration#hmac-calculation
+ * with the secret. Unchanged by the Unified Checkout migration — the
+ * transaction webhook payload is the same shape as before.
  *
  *   amount_cents, created_at, currency, error_occured, has_parent_transaction,
  *   id, integration_id, is_3d_secure, is_auth, is_capture, is_refunded,

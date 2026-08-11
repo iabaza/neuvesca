@@ -52,7 +52,7 @@ export type StripeIntentResult =
 export type PaymobCheckoutResult =
   | {
       ok: true;
-      iframeUrl: string;
+      checkoutUrl: string;
       orderId: string;
     }
   | { ok: false; error: string };
@@ -599,7 +599,7 @@ export async function createPaymobCheckout(
     return {
       ok: false,
       error:
-        "Card payment is not configured yet. Set PAYMOB_API_KEY, PAYMOB_INTEGRATION_ID, PAYMOB_IFRAME_ID and PAYMOB_HMAC_SECRET.",
+        "Card payment is not configured yet. Set PAYMOB_SECRET_KEY, PAYMOB_PUBLIC_KEY, PAYMOB_INTEGRATION_ID and PAYMOB_HMAC_SECRET.",
     };
   }
 
@@ -646,16 +646,35 @@ export async function createPaymobCheckout(
     const lastName = rest.join(" ") || firstName || "Customer";
     const country = (details.shipping_country || "EG").slice(0, 2).toUpperCase();
 
+    // Paymob requires the line items to sum exactly to the charged amount, so
+    // shipping and any promo discount are sent as their own lines. Product
+    // amounts are unit prices — Paymob applies the quantity itself.
+    const paymobItems = [
+      ...totals.cart.map((line) => ({
+        name: line.scentName
+          ? `${line.productName} — ${line.scentName}`
+          : line.productName,
+        amount_cents: line.unitPriceCents,
+        quantity: line.quantity,
+      })),
+      ...(totals.discountCents > 0
+        ? [
+            {
+              name: "Promo discount",
+              amount_cents: -totals.discountCents,
+              quantity: 1,
+            },
+          ]
+        : []),
+      ...(totals.shippingCents > 0
+        ? [{ name: "Shipping", amount_cents: totals.shippingCents, quantity: 1 }]
+        : []),
+    ];
+
     const checkout = await createPaymobHostedCheckout({
       amountCents: totals.totalCents,
       merchantOrderId,
-      items: [
-        {
-          name: `Neuvesca order ${merchantOrderId}`,
-          amount_cents: totals.totalCents,
-          quantity: 1,
-        },
-      ],
+      items: paymobItems,
       billing: {
         first_name: firstName || "Customer",
         last_name: lastName,
@@ -685,7 +704,7 @@ export async function createPaymobCheckout(
 
     return {
       ok: true,
-      iframeUrl: checkout.iframeUrl,
+      checkoutUrl: checkout.checkoutUrl,
       orderId,
     };
   } catch (error) {

@@ -99,7 +99,7 @@ export default function CheckoutForm({
         setIsStartingCard(false);
         return;
       }
-      window.location.href = result.iframeUrl;
+      window.location.href = result.checkoutUrl;
     } catch (error) {
       setCardMessage(
         error instanceof Error

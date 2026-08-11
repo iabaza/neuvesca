@@ -37,11 +37,27 @@ export async function POST(request: Request) {
     success?: boolean;
     is_refunded?: boolean;
     is_voided?: boolean;
-    order?: { merchant_order_id?: string; id?: number };
+    order?: {
+      merchant_order_id?: string;
+      id?: number;
+      // Unified Checkout echoes the reference we sent when creating the
+      // intention. Paymob surfaces it as merchant_order_id on the order, but
+      // both spellings are accepted here so a payload change cannot silently
+      // orphan a paid order.
+      special_reference?: string;
+    };
+    special_reference?: string;
   };
 
-  const merchantOrderId = obj.order?.merchant_order_id ?? "";
-  if (!merchantOrderId) {
+  const merchantOrderId =
+    obj.order?.merchant_order_id ||
+    obj.order?.special_reference ||
+    obj.special_reference ||
+    "";
+  const paymobOrderId = obj.order?.id ?? null;
+
+  if (!merchantOrderId && !paymobOrderId) {
+    console.error("[paymob/webhook] no reference on payload:", JSON.stringify(obj.order ?? {}));
     return NextResponse.json({ ok: false }, { status: 400 });
   }
 
@@ -57,20 +73,29 @@ export async function POST(request: Request) {
       ? "confirmed"
       : "pending";
 
+  // Prefer our own reference; fall back to Paymob's numeric order id, which we
+  // stored when the intention was created.
   const supabase = createAdminClient();
-  const { data: updated, error } = await supabase
+  const update = supabase
     .from("orders")
-    .update({
-      status: next,
-      paymob_order_id: obj.order?.id ?? null,
-    })
-    .eq("paymob_merchant_order_id", merchantOrderId)
+    .update({ status: next, paymob_order_id: paymobOrderId });
+
+  const { data: updated, error } = await (merchantOrderId
+    ? update.eq("paymob_merchant_order_id", merchantOrderId)
+    : update.eq("paymob_order_id", paymobOrderId)
+  )
     .select("id")
     .maybeSingle();
 
   if (error) {
     console.error("[paymob/webhook] order update failed:", error.message);
     return NextResponse.json({ ok: false }, { status: 500 });
+  }
+
+  if (!updated) {
+    console.error(
+      `[paymob/webhook] no order matched ref=${merchantOrderId} paymobOrderId=${paymobOrderId}`,
+    );
   }
 
   // Only now — once the payment is actually confirmed — does the customer get
