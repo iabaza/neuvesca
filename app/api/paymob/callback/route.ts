@@ -23,12 +23,27 @@ export async function GET(request: Request) {
   params.forEach((value, key) => {
     fields[key] = value;
   });
+
+  // TEMP DIAGNOSTIC: log every field Paymob actually sends on this redirect,
+  // so the real key names can be confirmed instead of assumed. Remove once
+  // the reference field is confirmed and the reader below is fixed to match.
+  console.log("[paymob/callback] raw query keys:", Object.keys(fields).join(","));
+  console.log("[paymob/callback] raw query:", JSON.stringify(fields));
+
   const hmac = String(fields.hmac ?? "");
 
   const valid = verifyPaymobHmac(fields, hmac);
   const success = valid && fields.success === "true";
   const merchantOrderId = String(
-    fields.merchant_order_id ?? fields["order.merchant_order_id"] ?? "",
+    fields.merchant_order_id ??
+      fields["order.merchant_order_id"] ??
+      fields.special_reference ??
+      fields["order.special_reference"] ??
+      "",
+  );
+
+  console.log(
+    `[paymob/callback] valid=${valid} success=${success} merchantOrderId="${merchantOrderId}"`,
   );
 
   let orderId = "";
