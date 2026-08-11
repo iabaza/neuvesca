@@ -1,13 +1,20 @@
 import { NextResponse } from "next/server";
+import { runAfterResponse } from "@/lib/background";
 import { createClient } from "@/lib/supabase/server";
 import { verifyPaymobHmac } from "@/lib/payments/paymob";
 
 /**
- * Browser redirect after Paymob's hosted iframe completes (or fails).
+ * Browser redirect after Paymob's hosted checkout completes (or fails).
  * Paymob appends transaction fields + ?hmac=... to the configured return URL.
  *
  * We trust the server-to-server webhook for the source of truth — this route
  * only routes the customer to the right page.
+ *
+ * Paymob treats a response slower than 5 seconds as a failed integration, so
+ * the response path does the minimum needed to build the redirect. Clearing the
+ * cart is deferred to waitUntil: the customer must not wait on it, but it still
+ * has to run, and a bare floating promise would be killed when the lambda is
+ * frozen after the redirect is sent.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -35,12 +42,7 @@ export async function GET(request: Request) {
     orderId = data?.id ?? "";
 
     if (orderId && success) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("cart_items").delete().eq("user_id", user.id);
-      }
+      runAfterResponse(clearCart(supabase));
     }
   }
 
@@ -51,4 +53,20 @@ export async function GET(request: Request) {
     : "/cart";
 
   return NextResponse.redirect(new URL(target, url.origin));
+}
+
+async function clearCart(supabase: ReturnType<typeof createClient>) {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("cart_items").delete().eq("user_id", user.id);
+    }
+  } catch (err) {
+    console.error(
+      "[paymob/callback] clearing cart failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
 }
