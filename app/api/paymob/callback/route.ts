@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runAfterResponse } from "@/lib/background";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   normalizePaymobCallbackQuery,
   verifyPaymobHmac,
@@ -45,8 +46,14 @@ export async function GET(request: Request) {
 
   let orderId = "";
   if (merchantOrderId) {
-    const supabase = createClient();
-    const { data } = await supabase
+    // Guest orders (no logged-in customer) have user_id = null, and RLS on
+    // `orders` only lets an authenticated user read their own row — so the
+    // regular session client silently sees no row here, indistinguishable
+    // from the order not existing. Read with the admin client instead: the
+    // HMAC check above already establishes this request is genuinely from
+    // Paymob before any of this data is trusted.
+    const adminClient = createAdminClient();
+    const { data } = await adminClient
       .from("orders")
       .select("id")
       .eq("paymob_merchant_order_id", merchantOrderId)
@@ -54,7 +61,9 @@ export async function GET(request: Request) {
     orderId = data?.id ?? "";
 
     if (orderId && success) {
-      runAfterResponse(clearCart(supabase));
+      // Cart-clearing is scoped to whoever the browser is actually logged in
+      // as, so it stays on the session-aware client.
+      runAfterResponse(clearCart(createClient()));
     }
   }
 
