@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { runAfterResponse } from "@/lib/background";
 import { createClient } from "@/lib/supabase/server";
-import { verifyPaymobHmac } from "@/lib/payments/paymob";
+import {
+  normalizePaymobCallbackQuery,
+  verifyPaymobHmac,
+} from "@/lib/payments/paymob";
 
 /**
  * Browser redirect after Paymob's hosted checkout completes (or fails).
@@ -19,32 +22,26 @@ import { verifyPaymobHmac } from "@/lib/payments/paymob";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const params = url.searchParams;
-  const fields: Record<string, unknown> = {};
+  const rawFields: Record<string, unknown> = {};
   params.forEach((value, key) => {
-    fields[key] = value;
+    rawFields[key] = value;
   });
 
-  // TEMP DIAGNOSTIC: log every field Paymob actually sends on this redirect,
-  // so the real key names can be confirmed instead of assumed. Remove once
-  // the reference field is confirmed and the reader below is fixed to match.
-  console.log("[paymob/callback] raw query keys:", Object.keys(fields).join(","));
-  console.log("[paymob/callback] raw query:", JSON.stringify(fields));
-
+  // The redirect's raw query uses different key names than the webhook JSON
+  // body (see normalizePaymobCallbackQuery) — normalize before verifying, or
+  // the HMAC check silently fails for every payment, success included.
+  const fields = normalizePaymobCallbackQuery(rawFields);
   const hmac = String(fields.hmac ?? "");
 
   const valid = verifyPaymobHmac(fields, hmac);
   const success = valid && fields.success === "true";
-  const merchantOrderId = String(
-    fields.merchant_order_id ??
-      fields["order.merchant_order_id"] ??
-      fields.special_reference ??
-      fields["order.special_reference"] ??
-      "",
-  );
+  const merchantOrderId = String(fields.merchant_order_id ?? "");
 
-  console.log(
-    `[paymob/callback] valid=${valid} success=${success} merchantOrderId="${merchantOrderId}"`,
-  );
+  if (!valid) {
+    console.error(
+      `[paymob/callback] HMAC verification failed for order ref="${merchantOrderId}"`,
+    );
+  }
 
   let orderId = "";
   if (merchantOrderId) {

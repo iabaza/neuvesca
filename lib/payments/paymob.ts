@@ -251,3 +251,30 @@ export function flattenWebhookTransaction(payload: {
     success: t.success,
   };
 }
+
+/**
+ * Normalize the raw query string Paymob appends to redirection_url into the
+ * flat field names verifyPaymobHmac expects.
+ *
+ * The browser redirect uses different literal key names than the webhook JSON
+ * body: the order reference arrives as `order` (not `order_id`), and nested
+ * fields use dot notation — `source_data.pan`, `source_data.type`,
+ * `source_data.sub_type` — rather than underscores. Passing the raw query
+ * straight into verifyPaymobHmac silently looks up the wrong keys, computes
+ * the wrong HMAC, and rejects every successful payment as invalid — this was
+ * confirmed against a real Paymob-signed redirect: the un-normalized fields
+ * produce an HMAC that does not match Paymob's, and once normalized here it
+ * matches exactly.
+ */
+export function normalizePaymobCallbackQuery(
+  fields: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...fields,
+    order_id: fields.order_id ?? fields.order ?? fields["order.id"],
+    source_data_pan: fields.source_data_pan ?? fields["source_data.pan"],
+    source_data_sub_type:
+      fields.source_data_sub_type ?? fields["source_data.sub_type"],
+    source_data_type: fields.source_data_type ?? fields["source_data.type"],
+  };
+}
