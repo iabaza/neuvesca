@@ -221,25 +221,50 @@ async function sendEmailNotifications(args: OrderEmailArgs) {
 
   const adminText = `New order on Neuvesca!\n\nOrder ID : ${shortId}\nCustomer : ${args.customerName} <${args.customerEmail}>\nPayment  : ${args.paymentMethod.replace(/_/g, " ")}\nTotal    : ${formatPrice(args.totalCents, args.currency)}\n\nItems:\n${itemRows}\n\nShip to:\n${args.shippingAddress}\n\nView order → ${adminUrl}`;
 
-  await Promise.all([
+  // Settled, not all: the two recipients are independent. A customer who
+  // mistypes their address (a real occurrence — "tes@gmail.com") must never
+  // take the merchant's own order alert down with them, and vice versa.
+  const [adminResult, customerResult] = await Promise.allSettled([
     transporter.sendMail({
       from: `"Neuvesca Orders" <${process.env.EMAIL_USER}>`,
       to: "Neuvescacosmetics@gmail.com",
       subject: `New order — ${args.customerName} · ${formatPrice(args.totalCents, args.currency)}`,
       text: adminText,
     }),
-    ...(args.customerEmail
-      ? [
-          transporter.sendMail({
-            from: `"Neuvesca" <${process.env.EMAIL_USER}>`,
-            to: args.customerEmail,
-            subject: `Your Neuvesca order is confirmed — #${shortId}`,
-            html: buildReceiptHtml(args),
-          }),
-        ]
-      : []),
+    args.customerEmail
+      ? transporter.sendMail({
+          from: `"Neuvesca" <${process.env.EMAIL_USER}>`,
+          to: args.customerEmail,
+          subject: `Your Neuvesca order is confirmed — #${shortId}`,
+          html: buildReceiptHtml(args),
+        })
+      : Promise.resolve(null),
   ]);
-  console.log(`[Email] Sent for order ${shortId}`);
+
+  if (adminResult.status === "rejected") {
+    console.error(
+      `[Email] admin alert FAILED for order ${shortId}:`,
+      reasonOf(adminResult.reason),
+    );
+  } else {
+    console.log(`[Email] admin alert sent for order ${shortId}`);
+  }
+
+  if (customerResult.status === "rejected") {
+    // The order is still valid and paid — only the confirmation did not reach
+    // them. Logged loudly so the address can be corrected and the customer
+    // contacted another way.
+    console.error(
+      `[Email] customer receipt FAILED for order ${shortId} to "${args.customerEmail}":`,
+      reasonOf(customerResult.reason),
+    );
+  } else if (args.customerEmail) {
+    console.log(`[Email] customer receipt sent for order ${shortId}`);
+  }
+}
+
+function reasonOf(reason: unknown): string {
+  return reason instanceof Error ? reason.message : String(reason);
 }
 
 export async function sendNewOrderNotification(args: OrderEmailArgs) {
