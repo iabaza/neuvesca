@@ -81,9 +81,6 @@ export default function CheckoutView({ userEmail, error }: Props) {
         <h1 className="!text-[clamp(2.4rem,4vw,3.6rem)]">
           Shipping &amp; payment.
         </h1>
-        <p className="lede">
-          Pay cash on delivery — we&rsquo;ll get the pour boxed and shipped.
-        </p>
 
         <CheckoutForm
           cart={items.map((line) => ({
