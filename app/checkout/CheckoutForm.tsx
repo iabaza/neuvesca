@@ -8,12 +8,11 @@ const EGYPT_GOVERNORATES = [
   "New Valley", "Matrouh", "North Sinai", "South Sinai",
 ];
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { formatPrice } from "@/lib/format";
 import type { ServerCartLine } from "@/lib/queries/cart";
-import { readStoredPromo, type StoredPromo } from "@/lib/cart/promo";
-import { calculateShippingCents } from "@/lib/checkout/shipping";
+import type { StoredPromo } from "@/lib/cart/promo";
 import { createPaymobCheckout, placeOrder } from "./actions";
 
 function PayNowButton({
@@ -54,35 +53,37 @@ function PayNowButton({
 
 export default function CheckoutForm({
   cart,
+  city,
   currency,
-  subtotalCents,
-  userEmail,
+  discountCents,
   error,
+  onCityChange,
+  onRegionChange,
+  promo,
+  region,
+  shippingCents,
+  subtotalCents,
+  totalCents,
+  userEmail,
 }: {
   cart: ServerCartLine[];
+  city: string;
   currency: string;
-  subtotalCents: number;
-  userEmail: string;
+  discountCents: number;
   error?: string;
+  onCityChange: (city: string) => void;
+  onRegionChange: (region: string) => void;
+  promo: StoredPromo | null;
+  region: string;
+  shippingCents: number;
+  subtotalCents: number;
+  totalCents: number;
+  userEmail: string;
 }) {
   const formRef = useRef<HTMLFormElement | null>(null);
   const [isStartingCard, setIsStartingCard] = useState(false);
   const [cardMessage, setCardMessage] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"card" | "cod">("cod");
-  const [promo, setPromo] = useState<StoredPromo | null>(null);
-  const [city, setCity] = useState("");
-  const [region, setRegion] = useState("");
-
-  useEffect(() => {
-    setPromo(readStoredPromo());
-  }, []);
-
-  const discountCents = promo
-    ? Math.round((subtotalCents * promo.percent) / 100)
-    : 0;
-  const shippingCents = calculateShippingCents(city, region);
-  const totalCents =
-    Math.max(0, subtotalCents - discountCents) + shippingCents;
 
   async function payWithCard() {
     const form = formRef.current;
@@ -152,7 +153,7 @@ export default function CheckoutForm({
         <span>Governorate</span>
         <select
           name="shipping_region"
-          onChange={(e) => setRegion(e.target.value)}
+          onChange={(e) => onRegionChange(e.target.value)}
           required
           value={region}
         >
@@ -167,7 +168,7 @@ export default function CheckoutForm({
           <span>City / District</span>
           <input
             name="shipping_city"
-            onChange={(e) => setCity(e.target.value)}
+            onChange={(e) => onCityChange(e.target.value)}
             required
             type="text"
             value={city}

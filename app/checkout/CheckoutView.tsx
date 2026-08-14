@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatPrice } from "@/lib/format";
 import { useCart } from "@/lib/cart/CartProvider";
 import { trackInitiateCheckout } from "@/lib/analytics/meta";
+import { calculateShippingCents } from "@/lib/checkout/shipping";
+import { readStoredPromo, type StoredPromo } from "@/lib/cart/promo";
 import CheckoutForm from "./CheckoutForm";
 
 type Props = {
@@ -15,6 +17,26 @@ type Props = {
 export default function CheckoutView({ userEmail, error }: Props) {
   const router = useRouter();
   const { items, isLoading, subtotalCents } = useCart();
+
+  // City/region/promo are lifted up from CheckoutForm (which owns the actual
+  // inputs) so the order-summary card on the right can compute shipping and
+  // the total from the same values the form itself uses — previously this
+  // card hardcoded a static "Cairo 100 EGP · Other 130 EGP" label and never
+  // added shipping to the displayed total at all, disagreeing with the
+  // correct total shown inside the form.
+  const [city, setCity] = useState("");
+  const [region, setRegion] = useState("");
+  const [promo, setPromo] = useState<StoredPromo | null>(null);
+
+  useEffect(() => {
+    setPromo(readStoredPromo());
+  }, []);
+
+  const discountCents = promo
+    ? Math.round((subtotalCents * promo.percent) / 100)
+    : 0;
+  const shippingCents = calculateShippingCents(city, region);
+  const totalCents = Math.max(0, subtotalCents - discountCents) + shippingCents;
 
   useEffect(() => {
     if (!isLoading && items.length === 0) {
@@ -81,9 +103,17 @@ export default function CheckoutView({ userEmail, error }: Props) {
             currency: line.currency,
             quantity: line.quantity,
           }))}
+          city={city}
           currency={currency}
+          discountCents={discountCents}
           error={error}
+          onCityChange={setCity}
+          onRegionChange={setRegion}
+          promo={promo}
+          region={region}
+          shippingCents={shippingCents}
           subtotalCents={subtotalCents}
+          totalCents={totalCents}
           userEmail={userEmail}
         />
       </div>
@@ -116,14 +146,24 @@ export default function CheckoutView({ userEmail, error }: Props) {
             <span>Subtotal</span>
             <span>{formatPrice(subtotalCents, currency)}</span>
           </div>
+          {promo && discountCents > 0 && (
+            <div className="flex items-baseline justify-between text-[var(--muted)]">
+              <span>Promo ({promo.code})</span>
+              <span>− {formatPrice(discountCents, currency)}</span>
+            </div>
+          )}
           <div className="flex items-baseline justify-between text-[var(--muted)]">
             <span>Shipping</span>
-            <span>Cairo 100 EGP · Other 130 EGP</span>
+            <span>
+              {city || region
+                ? formatPrice(shippingCents, currency)
+                : "Cairo 100 EGP · Other 130 EGP"}
+            </span>
           </div>
           <div className="mt-2 flex items-baseline justify-between border-t border-[var(--line)] pt-3">
             <span className="eyebrow !mb-0">Total</span>
             <span className="[font-family:var(--serif)] text-[1.6rem] italic">
-              {formatPrice(subtotalCents, currency)}
+              {formatPrice(totalCents, currency)}
             </span>
           </div>
         </div>
