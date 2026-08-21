@@ -6,19 +6,19 @@ import HeroCarousel from "@/components/HeroCarousel";
 
 const reviews = [
   {
-    quote: "The scent is soft, and the serum leaves my skin incredibly smooth.",
-    name: "Eloise R.",
-    place: "Copenhagen",
+    quote: "الريحة هادية وناعمة، والسيروم بيسيب بشرتي حريرية بجد.",
+    name: "نور الشريف",
+    place: "القاهرة",
   },
   {
-    quote: "Melts beautifully into a warm oil, perfect for slow, intentional evenings.",
-    name: "Marguerite A.",
-    place: "Lisbon",
+    quote: "بتسيح لطبقة زيت دافئة، مثالية لليالي الهادية والمريحة.",
+    name: "ياسمين عادل",
+    place: "الإسكندرية",
   },
   {
-    quote: "Feels luxurious from the first light to the final touch on skin.",
-    name: "Theo M.",
-    place: "Brooklyn",
+    quote: "حاسة إنها رفاهية من أول ما بولّع الشمعة لحد آخر لمسة على بشرتي.",
+    name: "مريم حسن",
+    place: "الجيزة",
   },
 ];
 
@@ -162,8 +162,10 @@ export default async function Home() {
           {reviews.map((review) => (
             <figure key={review.quote}>
               <Stars />
-              <blockquote>&ldquo;{review.quote}&rdquo;</blockquote>
-              <figcaption>
+              <blockquote dir="rtl" lang="ar">
+                «{review.quote}»
+              </blockquote>
+              <figcaption dir="rtl" lang="ar">
                 <span>{review.name}</span>
                 <span>{review.place}</span>
               </figcaption>
