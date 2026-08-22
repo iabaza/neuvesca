@@ -147,7 +147,7 @@ export default function SiteFooter() {
       </form>
 
       <div className="col-span-full mt-[clamp(1.5rem,3vw,2.5rem)] flex justify-between gap-6 border-t border-[rgba(250,244,232,0.15)] pt-[clamp(2.5rem,4vw,3.5rem)] text-[0.7rem] uppercase tracking-[0.26em] text-[rgba(250,244,232,0.5)] max-sm:flex-col max-sm:gap-3">
-        <span>Neuvesca &middot; Cairo, Egypt</span>
+        <span>Neuvesca &middot; Alexandria, Egypt</span>
         <span>Poured by hand &middot; Shipped slowly</span>
       </div>
     </footer>
