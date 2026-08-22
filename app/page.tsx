@@ -8,17 +8,17 @@ const reviews = [
   {
     quote: "The scent is soft, and the serum leaves my skin incredibly smooth.",
     name: "Maryam Ahmed",
-    place: "Copenhagen",
+    place: "Cairo",
   },
   {
     quote: "Melts beautifully into a warm oil, perfect for slow, intentional evenings.",
     name: "Manar Gamal",
-    place: "Lisbon",
+    place: "Cairo",
   },
   {
     quote: "Feels luxurious from the first light to the final touch on skin.",
     name: "Salma Khaled",
-    place: "Brooklyn",
+    place: "Cairo",
   },
 ];
 
