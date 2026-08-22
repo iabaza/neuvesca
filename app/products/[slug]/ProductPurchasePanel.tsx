@@ -21,6 +21,8 @@ type Props = {
   listPriceLabel?: string | null;
   savingsLabel?: string | null;
   discountPercent?: number;
+  /** False for products not packaged in glass (e.g. the match box). */
+  showsGlassNote?: boolean;
   burnTimeHours: number | null;
   sizeGrams: number | null;
   scentId: string | null;
@@ -37,6 +39,7 @@ export default function ProductPurchasePanel({
   listPriceLabel,
   savingsLabel,
   discountPercent = 0,
+  showsGlassNote = true,
   burnTimeHours,
   sizeGrams,
   scentId,
@@ -216,9 +219,11 @@ export default function ProductPurchasePanel({
         ) : (
           <span className="productPrice">{priceLabel}</span>
         )}
-        <span className="productPriceNote">
-          Ships in reusable glass · Free shipping over E£1,500
-        </span>
+        {showsGlassNote && (
+          <span className="productPriceNote">
+            Ships in reusable glass · Free shipping over E£1,500
+          </span>
+        )}
       </div>
 
       <button

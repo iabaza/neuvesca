@@ -103,6 +103,7 @@ export default function ProductView({ product }: Props) {
               : null
           }
           scentId={scentId}
+          showsGlassNote={product.category !== "accessories"}
           sizeGrams={product.size_grams}
           unitPriceCents={salePriceCents}
         />
