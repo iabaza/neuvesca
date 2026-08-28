@@ -21,6 +21,8 @@ export type ProductRow = {
   category: ProductCategory;
   show_description_tab: boolean;
   show_ingredients_tab: boolean;
+  /** How many scent picks a buyer must make — 1 for a normal candle, 2/3+ for a bundle. */
+  bundle_size: number;
 };
 
 export type ScentRow = {
@@ -82,7 +84,7 @@ export async function listActiveProducts(filters?: {
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab,
+      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab, bundle_size,
        product_scents ( note_role, sort_order, scents ( id, slug, name, description, family, image_url ) )`,
     )
     .eq("is_active", true)
@@ -130,7 +132,7 @@ export async function getProductBySlug(
   const { data, error } = await supabase
     .from("products")
     .select(
-      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab,
+      `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, category, show_description_tab, show_ingredients_tab, bundle_size,
        product_scents ( note_role, sort_order, scents ( id, slug, name, description, family, image_url ) ),
        product_ingredients ( sort_order, ingredients ( id, slug, name, description, safety_notes ) )`,
     )

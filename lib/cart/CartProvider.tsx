@@ -32,6 +32,8 @@ type CartContextValue = {
     productId: string,
     scentId: string | null,
     quantity?: number,
+    /** Multiple scent picks for a bundle (bundle_size > 1). */
+    scentIds?: string[],
   ) => Promise<void>;
   updateQty: (lineId: string, quantity: number) => Promise<void>;
   removeItem: (lineId: string) => Promise<void>;
@@ -61,7 +63,9 @@ async function hydrateGuest(
   if (lines.length === 0) return [];
   const productIds = Array.from(new Set(lines.map((l) => l.productId)));
   const scentIds = Array.from(
-    new Set(lines.map((l) => l.scentId).filter((s): s is string => Boolean(s))),
+    new Set(
+      lines.flatMap((l) => (l.scentId ? [l.scentId] : l.scentIds)),
+    ),
   );
 
   const [{ data: products }, { data: scents }] = await Promise.all([
@@ -89,10 +93,12 @@ async function hydrateGuest(
       const s = l.scentId ? scentMap.get(l.scentId) ?? null : null;
       if (!p) return null;
       if (l.scentId && !s) return null;
+      if (l.scentIds.some((id) => !scentMap.has(id))) return null;
       return {
-        id: lineKey(l.productId, l.scentId),
+        id: lineKey(l.productId, l.scentId, l.scentIds),
         productId: l.productId,
         scentId: l.scentId,
+        scentIds: l.scentIds,
         quantity: l.quantity,
         productSlug: p.slug,
         productName: p.name,
@@ -104,6 +110,7 @@ async function hydrateGuest(
         currency: p.currency,
         scentName: s?.name ?? null,
         scentSlug: s?.slug ?? null,
+        scentNames: l.scentIds.map((id) => scentMap.get(id)!.name),
       };
     })
     .filter((x): x is CartItem => x !== null);
@@ -116,7 +123,7 @@ async function loadAuthedCart(
   const { data, error } = await supabase
     .from("cart_items")
     .select(
-      `id, product_id, scent_id, quantity,
+      `id, product_id, scent_id, scent_ids, quantity,
        products ( slug, name, image_url, tone, price_cents, discount_percent, currency ),
        scents ( slug, name )`,
     )
@@ -129,6 +136,7 @@ async function loadAuthedCart(
     id: string;
     product_id: string;
     scent_id: string | null;
+    scent_ids: string[] | null;
     quantity: number;
     products: {
       slug: string;
@@ -142,27 +150,41 @@ async function loadAuthedCart(
     scents: { slug: string; name: string } | null;
   };
 
-  return ((data ?? []) as unknown as Row[])
-    .filter((r) => r.products)
-    .map((r) => ({
-      id: r.id,
-      productId: r.product_id,
-      scentId: r.scent_id,
-      quantity: r.quantity,
-      productSlug: r.products!.slug,
-      productName: r.products!.name,
-      productImageUrl: r.products!.image_url,
-      productTone: r.products!.tone,
-      unitPriceCents: effectivePriceCents(
-        r.products!.price_cents,
-        r.products!.discount_percent,
-      ),
-      listPriceCents: r.products!.price_cents,
-      discountPercent: r.products!.discount_percent ?? 0,
-      currency: r.products!.currency,
-      scentName: r.scents?.name ?? null,
-      scentSlug: r.scents?.slug ?? null,
-    }));
+  const rows = ((data ?? []) as unknown as Row[]).filter((r) => r.products);
+
+  // scent_ids is a plain array column, not a foreign key PostgREST can embed,
+  // so bundle scent names need their own lookup.
+  const bundleScentIds = Array.from(
+    new Set(rows.flatMap((r) => r.scent_ids ?? [])),
+  );
+  const { data: bundleScents } = bundleScentIds.length
+    ? await supabase.from("scents").select("id, name").in("id", bundleScentIds)
+    : { data: [] as Array<{ id: string; name: string }> };
+  const bundleScentMap = new Map(
+    (bundleScents ?? []).map((s) => [s.id, s.name]),
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    productId: r.product_id,
+    scentId: r.scent_id,
+    scentIds: r.scent_ids ?? [],
+    quantity: r.quantity,
+    productSlug: r.products!.slug,
+    productName: r.products!.name,
+    productImageUrl: r.products!.image_url,
+    productTone: r.products!.tone,
+    unitPriceCents: effectivePriceCents(
+      r.products!.price_cents,
+      r.products!.discount_percent,
+    ),
+    listPriceCents: r.products!.price_cents,
+    discountPercent: r.products!.discount_percent ?? 0,
+    currency: r.products!.currency,
+    scentName: r.scents?.name ?? null,
+    scentSlug: r.scents?.slug ?? null,
+    scentNames: (r.scent_ids ?? []).map((id) => bundleScentMap.get(id) ?? ""),
+  }));
 }
 
 async function mergeGuestIntoDb(
@@ -174,19 +196,23 @@ async function mergeGuestIntoDb(
 
   const { data: existing } = await supabase
     .from("cart_items")
-    .select("product_id, scent_id, quantity")
+    .select("product_id, scent_id, scent_ids, quantity")
     .eq("user_id", userId);
 
   const existingMap = new Map<string, number>(
     ((existing ?? []) as Array<{
       product_id: string;
       scent_id: string | null;
+      scent_ids: string[] | null;
       quantity: number;
-    }>).map((row) => [lineKey(row.product_id, row.scent_id), row.quantity]),
+    }>).map((row) => [
+      lineKey(row.product_id, row.scent_id, row.scent_ids ?? []),
+      row.quantity,
+    ]),
   );
 
   for (const line of guestLines) {
-    const key = lineKey(line.productId, line.scentId);
+    const key = lineKey(line.productId, line.scentId, line.scentIds);
     const existingQty = existingMap.get(key) ?? 0;
     const nextQty = existingQty + line.quantity;
 
@@ -196,15 +222,19 @@ async function mergeGuestIntoDb(
         .update({ quantity: nextQty })
         .eq("user_id", userId)
         .eq("product_id", line.productId);
-      query = line.scentId
-        ? query.eq("scent_id", line.scentId)
-        : query.is("scent_id", null);
+      query =
+        line.scentIds.length > 0
+          ? query.eq("scent_ids", line.scentIds)
+          : line.scentId
+            ? query.eq("scent_id", line.scentId)
+            : query.is("scent_id", null);
       await query;
     } else {
       await supabase.from("cart_items").insert({
         user_id: userId,
         product_id: line.productId,
         scent_id: line.scentId,
+        scent_ids: line.scentIds,
         quantity: line.quantity,
       });
     }
@@ -302,11 +332,21 @@ export function CartProvider({
   }, [refresh]);
 
   const addToCart = useCallback(
-    async (productId: string, scentId: string | null, quantity = 1) => {
+    async (
+      productId: string,
+      scentId: string | null,
+      quantity = 1,
+      scentIds: string[] = [],
+    ) => {
+      const sameSelection = (i: CartItem) =>
+        i.productId === productId &&
+        (scentIds.length > 0
+          ? i.scentIds.length === scentIds.length &&
+            [...i.scentIds].sort().join(",") === [...scentIds].sort().join(",")
+          : i.scentId === scentId);
+
       if (userId) {
-        const existing = items.find(
-          (i) => i.productId === productId && i.scentId === scentId,
-        );
+        const existing = items.find(sameSelection);
         if (existing) {
           await supabase
             .from("cart_items")
@@ -317,6 +357,7 @@ export function CartProvider({
             user_id: userId,
             product_id: productId,
             scent_id: scentId,
+            scent_ids: scentIds,
             quantity,
           });
         }
@@ -324,6 +365,7 @@ export function CartProvider({
         const merged = mergeGuestLine(getGuestCart(), {
           productId,
           scentId,
+          scentIds,
           quantity,
         });
         setGuestCart(merged);
@@ -348,7 +390,7 @@ export function CartProvider({
       } else {
         const guest = getGuestCart();
         const next = guest.map((l) =>
-          lineKey(l.productId, l.scentId) === lineId
+          lineKey(l.productId, l.scentId, l.scentIds) === lineId
             ? { ...l, quantity: safe }
             : l,
         );
@@ -366,7 +408,7 @@ export function CartProvider({
         await supabase.from("cart_items").delete().eq("id", lineId);
       } else {
         const guest = getGuestCart().filter(
-          (l) => lineKey(l.productId, l.scentId) !== lineId,
+          (l) => lineKey(l.productId, l.scentId, l.scentIds) !== lineId,
         );
         setGuestCart(guest);
       }

@@ -30,7 +30,7 @@ export async function notifyOrderPlaced(orderId: string): Promise<void> {
 
     const { data: items } = await supabase
       .from("order_items")
-      .select("product_name, quantity, unit_price_cents")
+      .select("product_name, quantity, unit_price_cents, scent_names")
       .eq("order_id", orderId);
 
     const shippingAddress = [
@@ -54,7 +54,10 @@ export async function notifyOrderPlaced(orderId: string): Promise<void> {
       shippingCents: order.shipping_cents ?? 0,
       currency: order.currency,
       items: (items ?? []).map((i) => ({
-        productName: i.product_name,
+        productName:
+          i.scent_names && i.scent_names.length > 0
+            ? `${i.product_name} (${i.scent_names.join(", ")})`
+            : i.product_name,
         quantity: i.quantity,
         unitPriceCents: i.unit_price_cents,
       })),

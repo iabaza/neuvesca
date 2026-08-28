@@ -86,6 +86,7 @@ export default function ProductView({ product }: Props) {
         </header>
 
         <ProductPurchasePanel
+          bundleSize={product.bundle_size}
           burnTimeHours={product.burn_time_hours}
           discountPercent={onSale ? clampDiscountPercent(product.discount_percent) : 0}
           listPriceLabel={

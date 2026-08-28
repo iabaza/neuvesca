@@ -92,8 +92,10 @@ export default function CheckoutView({ userEmail, error }: Props) {
             productImageUrl: line.productImageUrl,
             productTone: line.productTone,
             scentId: line.scentId,
+            scentIds: line.scentIds,
             scentSlug: line.scentSlug,
             scentName: line.scentName,
+            scentNames: line.scentNames,
             unitPriceCents: line.unitPriceCents,
             listPriceCents: line.listPriceCents,
             discountPercent: line.discountPercent,
@@ -128,7 +130,11 @@ export default function CheckoutView({ userEmail, error }: Props) {
                   {line.productName}
                 </span>
                 <span className="text-[0.72rem] uppercase tracking-[0.22em] text-[var(--muted)]">
-                  {line.scentName ? `${line.scentName} x` : "x"}
+                  {line.scentIds.length > 0
+                    ? `${line.scentNames.filter(Boolean).join(", ")} x`
+                    : line.scentName
+                      ? `${line.scentName} x`
+                      : "x"}
                   {line.quantity}
                 </span>
               </div>

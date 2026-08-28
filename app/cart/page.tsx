@@ -155,8 +155,15 @@ export default function CartPage() {
               >
                 {line.productName}
               </Link>
-              {line.scentSlug && line.scentName && (
-                <span className="cartLineScent">{line.scentName}</span>
+              {line.scentIds.length > 0 ? (
+                <span className="cartLineScent">
+                  {line.scentNames.filter(Boolean).join(", ")}
+                </span>
+              ) : (
+                line.scentSlug &&
+                line.scentName && (
+                  <span className="cartLineScent">{line.scentName}</span>
+                )
               )}
               <div className="cartLineActions">
                 <div className="qtyStepper">

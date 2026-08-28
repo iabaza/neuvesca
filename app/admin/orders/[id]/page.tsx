@@ -33,7 +33,7 @@ export default async function AdminOrderDetailPage({
   const { data: items } = await supabase
     .from("order_items")
     .select(
-      "id, product_name, product_slug, product_family, quantity, unit_price_cents, total_price_cents",
+      "id, product_name, product_slug, product_family, quantity, unit_price_cents, total_price_cents, scent_names",
     )
     .eq("order_id", order.id)
     .order("created_at", { ascending: true });
@@ -87,6 +87,11 @@ export default async function AdminOrderDetailPage({
                   <td>
                     <div style={{ display: "grid", gap: 2, lineHeight: 1.2 }}>
                       <span style={{ fontWeight: 500 }}>{it.product_name}</span>
+                      {it.scent_names && it.scent_names.length > 0 && (
+                        <span style={{ color: "var(--admin-ink-soft)", fontSize: "0.78rem" }}>
+                          {it.scent_names.join(", ")}
+                        </span>
+                      )}
                       <span style={{ color: "var(--admin-muted)", fontSize: "0.75rem" }}>
                         {it.product_family ?? ""}
                       </span>

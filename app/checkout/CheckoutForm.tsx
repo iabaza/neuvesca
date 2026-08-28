@@ -259,6 +259,7 @@ export default function CheckoutForm({
           cart.map((line) => ({
             productId: line.productId,
             scentId: line.scentId,
+            scentIds: line.scentIds,
             quantity: line.quantity,
           })),
         )}

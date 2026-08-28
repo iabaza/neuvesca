@@ -115,7 +115,12 @@ async function resolvePromo(
   return { id: data.id, percent: data.discount_percent };
 }
 
-type SnapshotLine = { productId: string; scentId: string | null; quantity: number };
+type SnapshotLine = {
+  productId: string;
+  scentId: string | null;
+  scentIds: string[];
+  quantity: number;
+};
 
 async function loadCartFromSnapshot(
   snapshot: SnapshotLine[],
@@ -125,9 +130,7 @@ async function loadCartFromSnapshot(
   const productIds = Array.from(new Set(snapshot.map((l) => l.productId)));
   const scentIds = Array.from(
     new Set(
-      snapshot
-        .map((l) => l.scentId)
-        .filter((s): s is string => Boolean(s)),
+      snapshot.flatMap((l) => (l.scentId ? [l.scentId] : l.scentIds)),
     ),
   );
 
@@ -170,10 +173,12 @@ async function loadCartFromSnapshot(
       if (!p) return null;
       const s = line.scentId ? scentMap.get(line.scentId) ?? null : null;
       if (line.scentId && !s) return null;
+      if (line.scentIds.some((id) => !scentMap.has(id))) return null;
       return {
         id: `${line.productId}:${line.scentId ?? "none"}`,
         productId: line.productId,
         scentId: line.scentId,
+        scentIds: line.scentIds,
         quantity: Math.max(1, Math.min(99, Math.round(line.quantity))),
         productSlug: p.slug,
         productName: p.name,
@@ -186,6 +191,7 @@ async function loadCartFromSnapshot(
         currency: p.currency,
         scentName: s?.name ?? null,
         scentSlug: s?.slug ?? null,
+        scentNames: line.scentIds.map((id) => scentMap.get(id)!.name),
       };
     })
     .filter((l): l is ServerCartLine => Boolean(l));
@@ -201,11 +207,14 @@ function parseSnapshot(raw: string): SnapshotLine[] {
         const productId = typeof row.productId === "string" ? row.productId : "";
         const scentId =
           typeof row.scentId === "string" && row.scentId ? row.scentId : null;
+        const scentIds = Array.isArray(row.scentIds)
+          ? row.scentIds.filter((s: unknown): s is string => typeof s === "string")
+          : [];
         const quantity = Number(row.quantity ?? 0);
         if (!productId || !Number.isFinite(quantity) || quantity <= 0) {
           return null;
         }
-        return { productId, scentId, quantity };
+        return { productId, scentId, scentIds, quantity };
       })
       .filter((r): r is SnapshotLine => Boolean(r));
   } catch {
@@ -337,6 +346,10 @@ async function insertOrderWithItems({
     quantity: l.quantity,
     unit_price_cents: l.unitPriceCents,
     total_price_cents: l.quantity * l.unitPriceCents,
+    // Snapshot of the chosen scent(s), same idea as product_name — this is
+    // what fulfillment reads to know what to pour/pack, and previously there
+    // was no record of scent choice on the order at all.
+    scent_names: l.scentNames.length > 0 ? l.scentNames : l.scentName ? [l.scentName] : [],
   }));
 
   const { error: itemsError } = await supabase
@@ -650,13 +663,19 @@ export async function createPaymobCheckout(
     // shipping and any promo discount are sent as their own lines. Product
     // amounts are unit prices — Paymob applies the quantity itself.
     const paymobItems = [
-      ...totals.cart.map((line) => ({
-        name: line.scentName
-          ? `${line.productName} — ${line.scentName}`
-          : line.productName,
-        amount_cents: line.unitPriceCents,
-        quantity: line.quantity,
-      })),
+      ...totals.cart.map((line) => {
+        const scentSuffix =
+          line.scentNames.length > 0
+            ? line.scentNames.join(", ")
+            : line.scentName;
+        return {
+          name: scentSuffix
+            ? `${line.productName} — ${scentSuffix}`
+            : line.productName,
+          amount_cents: line.unitPriceCents,
+          quantity: line.quantity,
+        };
+      }),
       ...(totals.discountCents > 0
         ? [
             {

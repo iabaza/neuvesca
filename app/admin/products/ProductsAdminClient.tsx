@@ -45,6 +45,7 @@ export type AdminProduct = {
   category: AdminProductCategory;
   show_description_tab: boolean;
   show_ingredients_tab: boolean;
+  bundle_size: number;
   product_scents: Array<{
     scent_id: string;
     note_role: "primary" | "top" | "heart" | "base";
@@ -60,6 +61,7 @@ type ProductForm = {
   size_grams: string;
   price: string; // displayed in EGP, not cents
   discount_percent: string; // 0-100, empty/0 means no sale
+  bundle_size: string; // how many scents the buyer picks; blank/1 = normal single-scent product
   stock_units: string;
   image_url: string;
   gallery_image_urls: string[];
@@ -81,6 +83,7 @@ function blankForm(): ProductForm {
     size_grams: "",
     price: "48",
     discount_percent: "0",
+    bundle_size: "1",
     stock_units: "100",
     image_url: "",
     gallery_image_urls: [],
@@ -106,6 +109,7 @@ function productToForm(product: AdminProduct): ProductForm {
     size_grams: product.size_grams == null ? "" : String(product.size_grams),
     price: String(Math.round(product.price_cents / 100)),
     discount_percent: String(product.discount_percent ?? 0),
+    bundle_size: String(product.bundle_size ?? 1),
     stock_units: String(product.stock_units ?? 0),
     image_url: product.image_url ?? "",
     gallery_image_urls: product.gallery_image_urls ?? [],
@@ -158,7 +162,7 @@ export default function ProductsAdminClient({
     const { data, error } = await supabase
       .from("products")
       .select(
-        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, stock_units, category, show_description_tab, show_ingredients_tab,
+        `id, slug, name, description, family, burn_time_hours, tone, size_grams, price_cents, discount_percent, currency, image_url, gallery_image_urls, is_active, stock_units, category, show_description_tab, show_ingredients_tab, bundle_size,
          product_scents ( scent_id, note_role, sort_order )`,
       )
       .order("slug", { ascending: true });
@@ -230,6 +234,13 @@ export default function ProductsAdminClient({
         ? Math.min(100, Math.max(0, discountParsed))
         : 0;
 
+      // The DB constrains this to 1-10; clamp so a typo can't silently fail
+      // the save or produce a nonsensical bundle size.
+      const bundleParsed = Number.parseInt(form.bundle_size, 10);
+      const bundleSize = Number.isFinite(bundleParsed)
+        ? Math.min(10, Math.max(1, bundleParsed))
+        : 1;
+
       const stockParsed = Number.parseInt(form.stock_units, 10);
       const stockUnits = Number.isFinite(stockParsed) && stockParsed >= 0
         ? stockParsed
@@ -253,6 +264,7 @@ export default function ProductsAdminClient({
         size_grams: sizeGrams,
         price_cents: priceCents,
         discount_percent: discountPercent,
+        bundle_size: bundleSize,
         currency: DEFAULT_CURRENCY,
         image_url: imageUrl,
         gallery_image_urls: form.gallery_image_urls,
@@ -501,6 +513,23 @@ export default function ProductsAdminClient({
               {discountPreview ? (
                 <span className="adminFormHint">{discountPreview}</span>
               ) : null}
+            </label>
+            <label className="adminFormRow">
+              <span className="adminFormLabel">
+                Bundle{" "}
+                <span style={{ color: "var(--admin-muted)", fontWeight: 400, letterSpacing: 0, textTransform: "none" }}>
+                  — scents the buyer picks, 1 = normal
+                </span>
+              </span>
+              <input
+                className="adminInput"
+                max="10"
+                min="1"
+                onChange={(e) => updateField("bundle_size", e.target.value)}
+                placeholder="1"
+                type="number"
+                value={form.bundle_size}
+              />
             </label>
             <label className="adminFormRow">
               <span className="adminFormLabel">Units in stock</span>
