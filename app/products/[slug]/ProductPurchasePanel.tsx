@@ -58,18 +58,20 @@ export default function ProductPurchasePanel({
   const [added, setAdded] = useState(false);
   const [scentError, setScentError] = useState(false);
 
-  // One slot per candle in the bundle. Kept separate from the single-scent
-  // `scentId` state above so the ordinary (bundleSize === 1) path is entirely
+  // Distinct scent picks for the bundle, chosen from one shared grid by
+  // toggling tiles on and off. Kept separate from the single-scent `scentId`
+  // state above so the ordinary (bundleSize === 1) path is entirely
   // unaffected by this — it never reads or writes bundleScentIds.
-  const [bundleScentIds, setBundleScentIds] = useState<Array<string | null>>(
-    () => Array.from({ length: bundleSize }, () => null),
-  );
+  const [bundleScentIds, setBundleScentIds] = useState<string[]>([]);
+
+  // Can't ask for more distinct scents than the product actually offers.
+  const requiredScentCount = Math.min(bundleSize, primaryScents.length);
 
   // Guards against a stale selection surviving a client-side navigation to a
   // different product page — reset explicitly rather than relying on this
   // component unmounting between products.
   useEffect(() => {
-    setBundleScentIds(Array.from({ length: bundleSize }, () => null));
+    setBundleScentIds([]);
   }, [productId, bundleSize]);
 
   const selectedScent = useMemo(
@@ -77,16 +79,24 @@ export default function ProductPurchasePanel({
     [primaryScents, scentId],
   );
 
-  const bundleComplete = bundleScentIds.every((id) => id !== null);
+  const bundleComplete = bundleScentIds.length === requiredScentCount;
   const canAdd = !adding && !isPending;
 
-  function setBundleSlot(index: number, id: string) {
+  function toggleBundleScent(id: string) {
     setBundleScentIds((current) => {
-      const next = [...current];
-      next[index] = id;
-      return next;
+      if (current.includes(id)) {
+        setScentError(false);
+        return current.filter((existing) => existing !== id);
+      }
+      if (current.length >= requiredScentCount) {
+        // Already at the limit — ignore rather than silently swap one out,
+        // so a stray click can't quietly change what they already chose.
+        setScentError(true);
+        return current;
+      }
+      setScentError(false);
+      return [...current, id];
     });
-    setScentError(false);
   }
 
   async function commit(): Promise<boolean> {
@@ -96,7 +106,7 @@ export default function ProductPurchasePanel({
         return false;
       }
       setScentError(false);
-      await addToCart(productId, null, quantity, bundleScentIds as string[]);
+      await addToCart(productId, null, quantity, bundleScentIds);
     } else {
       if (hasScents && !scentId) {
         setScentError(true);
@@ -161,56 +171,51 @@ export default function ProductPurchasePanel({
       )}
 
       {isBundle ? (
-        <div className="grid gap-5">
-          {bundleScentIds.map((slotScentId, index) => {
-            const slotSelected = primaryScents.find((s) => s.id === slotScentId) ?? null;
-            return (
-              <fieldset className="scentPicker" key={index}>
-                <legend className="scentPickerHeader">
-                  <span className="eyebrow">
-                    Scent {index + 1} of {bundleSize}
-                  </span>
-                  {slotSelected && (
-                    <span className="scentSelected">{slotSelected.name}</span>
-                  )}
-                </legend>
+        <fieldset className="scentPicker">
+          <legend className="scentPickerHeader">
+            <span className="eyebrow">
+              Choose {requiredScentCount} scents
+              <span className="scentPickerCount">
+                {bundleScentIds.length} of {requiredScentCount} chosen
+              </span>
+            </span>
+          </legend>
 
-                <div className="scentRow">
-                  {primaryScents.map((s) => {
-                    const selected = slotScentId === s.id;
-                    const img = s.image_url ?? scentImageUrl(s.slug);
-                    return (
-                      <div className="scentTile" key={s.id}>
-                        <button
-                          aria-label={`Choose ${s.name} for scent ${index + 1}`}
-                          aria-pressed={selected}
-                          className="scentTileImage"
-                          onClick={() => setBundleSlot(index, s.id)}
-                          type="button"
-                        >
-                          {img ? (
-                            <Image alt="" fill sizes="96px" src={img} />
-                          ) : (
-                            <span className="scentTileSwatch">
-                              <span style={{ background: scentSwatchColor(s.slug) }} />
-                            </span>
-                          )}
-                        </button>
-                        <span className="scentTileName">{s.name}</span>
-                      </div>
-                    );
-                  })}
+          <div className="scentRow">
+            {primaryScents.map((s) => {
+              const selected = bundleScentIds.includes(s.id);
+              const img = s.image_url ?? scentImageUrl(s.slug);
+              return (
+                <div className="scentTile" key={s.id}>
+                  <button
+                    aria-label={`${selected ? "Remove" : "Choose"} ${s.name}`}
+                    aria-pressed={selected}
+                    className="scentTileImage"
+                    onClick={() => toggleBundleScent(s.id)}
+                    type="button"
+                  >
+                    {img ? (
+                      <Image alt="" fill sizes="96px" src={img} />
+                    ) : (
+                      <span className="scentTileSwatch">
+                        <span style={{ background: scentSwatchColor(s.slug) }} />
+                      </span>
+                    )}
+                  </button>
+                  <span className="scentTileName">{s.name}</span>
                 </div>
-              </fieldset>
-            );
-          })}
+              );
+            })}
+          </div>
 
           {scentError && (
             <p className="scentError" role="alert">
-              Please choose a scent for each candle in the bundle.
+              {bundleScentIds.length >= requiredScentCount
+                ? `You've already chosen ${requiredScentCount} — remove one to change your pick.`
+                : `Please choose ${requiredScentCount} scents for this bundle.`}
             </p>
           )}
-        </div>
+        </fieldset>
       ) : (
         hasScents && (
           <fieldset className="scentPicker">
