@@ -37,6 +37,8 @@ function Stars() {
 export default async function Home() {
   const products = await listActiveProducts();
   const featured = products.slice(0, 3);
+  // Any product the admin has set as a bundle (Bundle field > 1 scent picks).
+  const bundles = products.filter((product) => product.bundle_size > 1);
 
   return (
     <>
@@ -51,6 +53,59 @@ export default async function Home() {
         </div>
         <HeroCarousel />
       </section>
+
+      {bundles.length > 0 && (
+        <section className="section" id="bundles">
+          <div className="sectionHeader">
+            <div>
+              <h2>Candle Bundles</h2>
+            </div>
+            <Link className="sectionLink" href="/products#bundles">
+              View all bundles
+            </Link>
+          </div>
+          <div className="productGrid">
+            {bundles.map((product) => (
+              <Link
+                className="productCard"
+                key={product.id}
+                href={`/products/${product.slug}`}
+              >
+                <div className={`productVisual ${product.tone ?? ""}`}>
+                  <div className="productMeta">
+                    <span>{product.family}</span>
+                    {product.burn_time_hours ? (
+                      <span>{product.burn_time_hours} hr burn</span>
+                    ) : null}
+                  </div>
+                  {product.image_url ? (
+                    <Image
+                      alt={product.name}
+                      className="object-contain"
+                      fill
+                      sizes="(min-width: 980px) 30vw, 90vw"
+                      src={product.image_url}
+                    />
+                  ) : (
+                    <div className="candle">
+                      <span>Neuvesca</span>
+                    </div>
+                  )}
+                </div>
+                <div className="productInfo">
+                  <div className="productCardHeader">
+                    <h3>{product.name}</h3>
+                    <span className="productCardPrice">
+                      {formatPrice(product.price_cents, product.currency)}
+                    </span>
+                  </div>
+                  <p>{product.description}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="section" id="shop">
         <div className="sectionHeader">
