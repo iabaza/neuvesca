@@ -9,7 +9,7 @@ const columnHeadingClass =
 export default function SiteFooter() {
   return (
     <footer
-      className="grid items-start gap-[clamp(2.5rem,4vw,4rem)] bg-[var(--ink)] px-[clamp(1.5rem,5vw,5.5rem)] py-[clamp(5rem,8vw,9rem)] text-[var(--cream)] md:grid-cols-[1fr_minmax(280px,480px)] max-sm:px-5"
+      className="grid items-start gap-[clamp(2.5rem,4vw,4rem)] bg-[var(--ink)] px-[clamp(1.5rem,5vw,5.5rem)] py-[clamp(5rem,8vw,9rem)] text-[var(--cream)] max-sm:px-5"
       id="letter"
     >
       <div>
@@ -119,35 +119,8 @@ export default function SiteFooter() {
         </div>
       </div>
 
-      <form className="grid gap-3">
-        <label
-          className="[font-family:var(--serif)] text-[1.55rem] italic text-[var(--cream)]"
-          htmlFor="email"
-        >
-          Join the ritual
-        </label>
-        <p className="mb-2 max-w-[28rem] text-[0.88rem] leading-[1.65] text-[rgba(250,244,232,0.55)]">
-          Updates on new releases, ingredients, and the rituals behind each
-          pour.
-        </p>
-        <div className="flex gap-3 max-sm:flex-col">
-          <input
-            className="min-h-[52px] flex-1 border-0 border-b border-[rgba(250,244,232,0.3)] bg-transparent px-1 text-[var(--cream)] outline-none placeholder:text-[rgba(250,244,232,0.4)] focus:border-[var(--cream)]"
-            id="email"
-            placeholder="Email address"
-            type="email"
-          />
-          <button
-            className="inline-flex min-h-[52px] cursor-pointer items-center justify-center border border-[var(--cream)] bg-transparent px-7 py-4 text-[0.72rem] font-normal uppercase tracking-[0.26em] text-[var(--cream)] transition-colors hover:bg-[var(--cream)] hover:text-[var(--ink)] max-sm:w-full"
-            type="submit"
-          >
-            Subscribe
-          </button>
-        </div>
-      </form>
-
-      <div className="col-span-full mt-[clamp(1.5rem,3vw,2.5rem)] flex justify-between gap-6 border-t border-[rgba(250,244,232,0.15)] pt-[clamp(2.5rem,4vw,3.5rem)] text-[0.7rem] uppercase tracking-[0.26em] text-[rgba(250,244,232,0.5)] max-sm:flex-col max-sm:gap-3">
-        <span>Neuvesca &middot; Alexandria, Egypt</span>
+      <div className="mt-[clamp(1.5rem,3vw,2.5rem)] flex justify-between gap-6 border-t border-[rgba(250,244,232,0.15)] pt-[clamp(2.5rem,4vw,3.5rem)] text-[0.7rem] uppercase tracking-[0.26em] text-[rgba(250,244,232,0.5)] max-sm:flex-col max-sm:gap-3">
+        <span>Neuvesca &middot; Cairo, Egypt</span>
         <span>Poured by hand &middot; Shipped slowly</span>
       </div>
     </footer>
