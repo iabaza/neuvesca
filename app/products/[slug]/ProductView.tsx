@@ -20,6 +20,13 @@ type Props = {
   product: ProductDetail;
 };
 
+// Per-slot size labels for bundles where each scent pick is a different
+// candle size — shown next to "Scent N of M" so the buyer knows which pick
+// applies to which item. Only "signature-duo-set" needs this today.
+const BUNDLE_SLOT_LABELS: Record<string, (string | null)[]> = {
+  "signature-duo-set": ["150ml", "30ml"],
+};
+
 export default function ProductView({ product }: Props) {
   const hasScents = product.primary_scents.length > 0;
   const [scentId, setScentId] = useState<string | null>(null);
@@ -87,6 +94,7 @@ export default function ProductView({ product }: Props) {
 
         <ProductPurchasePanel
           bundleSize={product.bundle_size}
+          bundleSlotLabels={BUNDLE_SLOT_LABELS[product.slug]}
           burnTimeHours={product.burn_time_hours}
           discountPercent={onSale ? clampDiscountPercent(product.discount_percent) : 0}
           listPriceLabel={

@@ -29,6 +29,12 @@ type Props = {
   onScentChange: (id: string) => void;
   /** How many scent picks this product needs — 1 for a normal candle, 2/3+ for a bundle. */
   bundleSize?: number;
+  /**
+   * Optional per-slot size label (e.g. "150ml") shown next to "Scent N of M"
+   * so the buyer knows which scent pick applies to which item in the bundle.
+   * Index-aligned with the bundle slots; a missing entry just omits the label.
+   */
+  bundleSlotLabels?: (string | null)[];
 };
 
 export default function ProductPurchasePanel({
@@ -47,6 +53,7 @@ export default function ProductPurchasePanel({
   scentId,
   onScentChange,
   bundleSize = 1,
+  bundleSlotLabels,
 }: Props) {
   const router = useRouter();
   const { addToCart } = useCart();
@@ -169,6 +176,7 @@ export default function ProductPurchasePanel({
                 <legend className="scentPickerHeader">
                   <span className="eyebrow">
                     Scent {index + 1} of {bundleSize}
+                    {bundleSlotLabels?.[index] && ` — ${bundleSlotLabels[index]}`}
                   </span>
                   {slotSelected && (
                     <span className="scentSelected">{slotSelected.name}</span>
