@@ -130,7 +130,8 @@ Off
         )}
 
         <div className="productMeta">
-          <span>{product.family}</span>
+          {/* "Scented" doesn't apply to non-candle products like matches. */}
+          {product.category !== "accessories" && <span>{product.family}</span>}
           {product.burn_time_hours ? (
             <span>{product.burn_time_hours} hr burn</span>
           ) : null}

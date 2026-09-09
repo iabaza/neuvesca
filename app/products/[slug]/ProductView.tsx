@@ -87,7 +87,10 @@ export default function ProductView({ product }: Props) {
 
       <section className="productPanel">
         <header className="productHeader">
-          <p className="eyebrow">{product.family}</p>
+          {/* "Scented" doesn't apply to non-candle products like matches. */}
+          {product.category !== "accessories" && (
+            <p className="eyebrow">{product.family}</p>
+          )}
           <h1>{product.name}</h1>
           <p className="lede">{product.description}</p>
         </header>
