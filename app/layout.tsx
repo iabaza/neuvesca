@@ -4,9 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import MetaPixel from "@/components/MetaPixel";
-import GoogleTagManager, {
-  GoogleTagManagerNoscript,
-} from "@/components/GoogleTagManager";
 import { CartProvider } from "@/lib/cart/CartProvider";
 import "./globals.css";
 
@@ -43,11 +40,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={`${serif.variable} ${sans.variable}`}>
-      <head>
-        <GoogleTagManager />
-      </head>
       <body>
-        <GoogleTagManagerNoscript />
         <MetaPixel />
         <CartProvider
           initialIsAuthenticated={Boolean(user)}
