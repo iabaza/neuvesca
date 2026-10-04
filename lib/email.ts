@@ -30,6 +30,33 @@ type OrderEmailArgs = {
   paymentMethod: string;
 };
 
+// Plain-text twin of the HTML receipt. Mail with no text part scores worse with
+// spam filters (Hotmail/Yahoo especially), and some clients only show this.
+function buildReceiptText(args: OrderEmailArgs): string {
+  const shortId = args.orderId.slice(0, 8).toUpperCase();
+  const lines = args.items.map(
+    (i) => `- ${i.productName} x ${i.quantity}: ${formatPrice(i.unitPriceCents * i.quantity, args.currency)}`,
+  );
+  return [
+    `Hi ${args.customerName || "there"},`,
+    "",
+    `Thank you for your order. Your Neuvesca order #${shortId} is confirmed.`,
+    "",
+    ...lines,
+    "",
+    `Subtotal: ${formatPrice(args.subtotalCents, args.currency)}`,
+    ...(args.discountCents > 0 ? [`Discount: -${formatPrice(args.discountCents, args.currency)}`] : []),
+    `Shipping: ${formatPrice(args.shippingCents, args.currency)}`,
+    `Total: ${formatPrice(args.totalCents, args.currency)}`,
+    "",
+    `Ship to: ${args.shippingAddress}`,
+    "",
+    "Questions? Reply to this email or message us on WhatsApp: https://wa.me/201200265774",
+    "",
+    "Neuvesca",
+  ].join("\n");
+}
+
 function buildReceiptHtml(args: OrderEmailArgs): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.neuvesca.com";
   const shortId = args.orderId.slice(0, 8).toUpperCase();
@@ -235,7 +262,9 @@ async function sendEmailNotifications(args: OrderEmailArgs) {
       ? transporter.sendMail({
           from: `"Neuvesca" <${process.env.EMAIL_USER}>`,
           to: args.customerEmail,
+          replyTo: process.env.EMAIL_USER,
           subject: `Your Neuvesca order is confirmed — #${shortId}`,
+          text: buildReceiptText(args),
           html: buildReceiptHtml(args),
         })
       : Promise.resolve(null),
