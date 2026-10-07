@@ -53,6 +53,8 @@ function buildReceiptText(args: OrderEmailArgs): string {
     "",
     "Questions? Reply to this email or message us on WhatsApp: https://wa.me/201200265774",
     "",
+    'Found this in your spam folder? Please mark it as "Not spam" so our updates reach your inbox.',
+    "",
     "Neuvesca",
   ].join("\n");
 }
@@ -170,6 +172,7 @@ function buildReceiptHtml(args: OrderEmailArgs): string {
         <tr><td style="padding-top:28px;text-align:center;">
           <p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:12px;color:#8a7e6f;">Questions? Reply to this email or reach us at</p>
           <a href="mailto:Neuvescacosmetics@gmail.com" style="font-family:Arial,sans-serif;font-size:12px;color:#8a7e6f;">Neuvescacosmetics@gmail.com</a>
+          <p style="margin:14px 0 0;font-family:Arial,sans-serif;font-size:12px;color:#8a7e6f;line-height:1.6;">Found this in your spam folder? Please mark it as &ldquo;Not spam&rdquo; so our updates reach your inbox.</p>
           <p style="margin:16px 0 0;font-family:Georgia,serif;font-size:11px;letter-spacing:0.28em;text-transform:uppercase;color:#c4bdb0;">NEUVESCA · Cairo, Egypt</p>
         </td></tr>
 

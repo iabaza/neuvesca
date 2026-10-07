@@ -78,6 +78,11 @@ export default async function CheckoutSuccessPage({
       <p className="mt-4 text-[0.78rem] uppercase tracking-[0.24em] text-[var(--muted)]">
         Order #{order.id.slice(0, 8)}
       </p>
+      <p className="mx-auto mt-6 max-w-[34rem] text-[0.95rem] leading-[1.7] text-[var(--ink-soft)]">
+        A confirmation email is on its way. If you don&rsquo;t see it in your
+        inbox within a few minutes, please check your <strong>spam or junk</strong>{" "}
+        folder.
+      </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Link className="button primary" href="/products">
           Back to the cabinet
