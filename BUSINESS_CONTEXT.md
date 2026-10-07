@@ -135,7 +135,7 @@ available).
 - Cairo — EGP 100
 - All other governorates — EGP 130
 - **Free shipping over EGP 1,500**
-- Standard delivery 5–10 working days (excl. weekends/holidays)
+- Standard delivery 5 business days (excl. weekends/holidays)
 - Next-day / business delivery on request by email
 
 **Returns & exchanges:**

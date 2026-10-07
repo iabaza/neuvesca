@@ -23,7 +23,7 @@ export default function ShippingPage() {
           </p>
           <ul>
             <li>
-              <strong>Standard shipping —</strong> 5–10 working days.
+              <strong>Standard shipping —</strong> 5 business days.
             </li>
             <li>
               <strong>Next-day delivery —</strong> available on request. Email{" "}
