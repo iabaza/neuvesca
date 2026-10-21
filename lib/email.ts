@@ -238,6 +238,63 @@ async function sendSmsNotification(args: OrderEmailArgs) {
   console.log(`[Twilio] WhatsApp sent for order ${shortId}`);
 }
 
+/**
+ * Customer receipt. Sent through Resend from the verified neuvesca.com domain
+ * (SPF/DKIM aligned), which is what gets it into the inbox instead of spam —
+ * a bare Gmail sender cannot be authenticated for a custom brand. If Resend is
+ * not configured or fails, falls back to the Gmail transport so the buyer
+ * still gets a receipt.
+ */
+async function sendCustomerReceipt(
+  transporter: ReturnType<typeof getTransporter>,
+  args: OrderEmailArgs,
+  shortId: string,
+) {
+  const subject = `Your Neuvesca order is confirmed — #${shortId}`;
+  const text = buildReceiptText(args);
+  const html = buildReceiptHtml(args);
+  const replyTo = process.env.EMAIL_USER?.trim() || "Neuvescacosmetics@gmail.com";
+  const resendKey = process.env.RESEND_API_KEY?.trim();
+
+  if (resendKey) {
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM?.trim() || "Neuvesca <orders@neuvesca.com>",
+          to: [args.customerEmail],
+          reply_to: replyTo,
+          subject,
+          text,
+          html,
+        }),
+      });
+      if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);
+      console.log(`[Email] customer receipt sent via Resend for order ${shortId}`);
+      return;
+    } catch (err) {
+      console.error(
+        `[Email] Resend failed for order ${shortId}, falling back to Gmail:`,
+        reasonOf(err),
+      );
+    }
+  }
+
+  if (!transporter) throw new Error("No email transport available");
+  await transporter.sendMail({
+    from: `"Neuvesca" <${process.env.EMAIL_USER}>`,
+    to: args.customerEmail,
+    replyTo,
+    subject,
+    text,
+    html,
+  });
+}
+
 async function sendEmailNotifications(args: OrderEmailArgs) {
   const transporter = getTransporter();
   if (!transporter) return;
@@ -262,14 +319,7 @@ async function sendEmailNotifications(args: OrderEmailArgs) {
       text: adminText,
     }),
     args.customerEmail
-      ? transporter.sendMail({
-          from: `"Neuvesca" <${process.env.EMAIL_USER}>`,
-          to: args.customerEmail,
-          replyTo: process.env.EMAIL_USER,
-          subject: `Your Neuvesca order is confirmed — #${shortId}`,
-          text: buildReceiptText(args),
-          html: buildReceiptHtml(args),
-        })
+      ? sendCustomerReceipt(transporter, args, shortId)
       : Promise.resolve(null),
   ]);
 
